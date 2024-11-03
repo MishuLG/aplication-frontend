@@ -1,6 +1,6 @@
 import { element } from 'prop-types'
 import React from 'react'
-import UserCRUD from './views/users/UserCRUD'
+import UserCRUD from './components/users/UserCRUD'
 
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
 const Colors = React.lazy(() => import('./views/theme/colors/Colors'))
