@@ -19,12 +19,11 @@ const App = () => {
   const { isColorModeSet, setColorMode } = useColorModes('coreui-free-react-admin-template-theme')
   const storedTheme = useSelector((state) => state.theme)
 
-  // Estado para manejar la autenticación
+  
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const handleLogin = (email, password) => {
-    console.log("User logged in with email:", email); // Para depuración
-    // Aquí puedes agregar lógica para verificar la contraseña
+    console.log("User logged in with email:", email)
     setIsAuthenticated(true);
   };
 
