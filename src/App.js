@@ -53,7 +53,7 @@ const App = () => {
         <Routes>
         {!isAuthenticated ? (
             <Route path="/login" element={<LoginForm onLogin={handleLogin} />} />
-          ) : (
+          )  : (
             <Route path="*" element={<DefaultLayout />} />
           )}
           <Route path="/register" name="Register Page" element={<Register />} />

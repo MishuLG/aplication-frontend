@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Card, CardBody, Form, FormGroup, Label, Input } from 'reactstrap';
+import './login.css'
 
 const LoginForm = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -17,7 +18,8 @@ const LoginForm = ({ onLogin }) => {
   };
 
   return (
-    <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+    <div className="login-body">
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
       <Card style={{ width: '400px' }}>
         <CardBody>
           <h1 className="text-center">Login</h1>
@@ -65,6 +67,9 @@ const LoginForm = ({ onLogin }) => {
         </CardBody>
       </Card>
     </div>
+
+    </div>
+    
   );
 };
 

@@ -24,11 +24,11 @@ const UserCRUD = () => {
   const [users, setUsers] = useState([
     { id: 1, DNI: 24567895, Firstname: 'John Doe', Lastname: 'Delgado', email: 'john@example.com' },
     { id: 2, DNI: 22654798, Firstname: 'Mary', Lastname: 'Caceres', email: 'mary@example.com' },
-    { id: 3, DNI: 22567897, Firstname: 'Alex', Lastname: 'Perez', email: 'alex@example.com' },
+    { id: 3, Firstname: 'Alex', Lastname: 'Perez', email: 'alex@example.com' },
   ])
   const [nextId, setNextId] = useState(4)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
+  const [showEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
   const [formData, setFormData] = useState({ DNI: '', Firstname: '', Lastname: '', email: '' })
@@ -119,7 +119,7 @@ const UserCRUD = () => {
       </CCard>
 
       
-      <CModal visible={showAddModal || showEditModal} onClose={() => setShowAddModal(false) || setShowEditModal(false)}>
+      <CModal visible={showAddModal} onClose={() => setShowAddModal(false) || setShowEditModal(false)}>
         <CModalHeader>
           <CModalTitle>{showAddModal ? 'Add User' : 'Edit User'}</CModalTitle>
         </CModalHeader>
@@ -152,7 +152,7 @@ const UserCRUD = () => {
           </CForm>
         </CModalBody>
         <CModalFooter>
-          <CButton color="primary" onClick={handleSaveUser}>
+          <CButton color="primary" onClick={() => {}}>
             Save
           </CButton>
           <CButton color="secondary" onClick={() => setShowAddModal(false) || setShowEditModal(false)}>
