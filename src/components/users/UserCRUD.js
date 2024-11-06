@@ -24,11 +24,11 @@ const UserCRUD = () => {
   const [users, setUsers] = useState([
     { id: 1, DNI: 24567895, Firstname: 'John Doe', Lastname: 'Delgado', email: 'john@example.com' },
     { id: 2, DNI: 22654798, Firstname: 'Mary', Lastname: 'Caceres', email: 'mary@example.com' },
-    { id: 3, Firstname: 'Alex', Lastname: 'Perez', email: 'alex@example.com' },
+    { id: 3, DNI: 20158498, Firstname: 'Alex', Lastname: 'Perez', email: 'alex@example.com' },
   ])
   const [nextId, setNextId] = useState(4)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [showEditModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
   const [formData, setFormData] = useState({ DNI: '', Firstname: '', Lastname: '', email: '' })
@@ -50,14 +50,14 @@ const UserCRUD = () => {
     setShowDeleteModal(true)
   }
 
-  const handleSaveUser = () => {
+  const handleSaveUser = (userId) => {
     if (showAddModal) {
-      const newUser = { ...formData, id: nextId }
-      setUsers([...users, newUser])
+      const newUser = { formData, id: nextId }
+      setUsers([users, newUser])
       setNextId(nextId + 1) 
       setShowAddModal(false)
     } else if (showEditModal && selectedUser) {
-      setUsers(users.map((u) => (u.id === selectedUser.id ? { ...selectedUser, ...formData } : u)))
+      setUsers(users.map((u) => (u.id === selectedUser.id ? { selectedUser, formData } : u)))
       setShowEditModal(false)
     }
   }
@@ -66,7 +66,7 @@ const UserCRUD = () => {
     const updatedUsers = users
       .filter((user) => user.id !== selectedUser.id) 
       .map((user) => {
-        return user.id > selectedUser.id ? { ...user, id: user.id - 1 } : user
+        return user.id > selectedUser.id ? { user, id: user.id - 1 } : user
       })
 
     setUsers(updatedUsers) 
@@ -119,7 +119,7 @@ const UserCRUD = () => {
       </CCard>
 
       
-      <CModal visible={showAddModal} onClose={() => setShowAddModal(false) || setShowEditModal(false)}>
+      <CModal visible={showAddModal} onClose={() => handleSaveUser(users.id)}>
         <CModalHeader>
           <CModalTitle>{showAddModal ? 'Add User' : 'Edit User'}</CModalTitle>
         </CModalHeader>
@@ -129,30 +129,30 @@ const UserCRUD = () => {
               type="text"
               label="DNI"
               value={formData.DNI}
-              onChange={(e) => setFormData({ ...formData, DNI: e.target.value })}
+              onChange={(e) => setFormData({ formData, DNI: e.target.value })}
             />
             <CFormInput
               type="text"
               label="Firstname"
               value={formData.Firstname}
-              onChange={(e) => setFormData({ ...formData, Firstname: e.target.value })}
+              onChange={(e) => setFormData({ formData, Firstname: e.target.value })}
             />
             <CFormInput
               type="text"
               label="Lastname"
               value={formData.Lastname}
-              onChange={(e) => setFormData({ ...formData, Lastname: e.target.value })}
+              onChange={(e) => setFormData({ formData, Lastname: e.target.value })}
             />
             <CFormInput
               type="email"
               label="Email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) => setFormData({ formData, email: e.target.value })}
             />
           </CForm>
         </CModalBody>
         <CModalFooter>
-          <CButton color="primary" onClick={() => {}}>
+          <CButton color="primary" onClick={() => setShowAddModal(false) || setShowEditModal(false)}>
             Save
           </CButton>
           <CButton color="secondary" onClick={() => setShowAddModal(false) || setShowEditModal(false)}>
