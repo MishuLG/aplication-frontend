@@ -1,0 +1,18 @@
+.header-container {
+    border-bottom: 4px;
+    background-color: #1a67cca6;
+    text-decoration: none;
+}
+
+.header-profile {
+    padding-top: 0px;
+    background-color: #1a67cca6;
+    font-weight: bold, 2mb;
+    text-decoration: none;
+    color: white;
+    box-shadow: 2px;
+}
+
+.header-breadcrumb {
+    background-color: #1a67cca6;
+}

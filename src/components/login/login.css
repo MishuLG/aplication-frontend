@@ -1,5 +1,18 @@
 .login-body{
-    background: url(../../assets/images/imagen_escuela.jpg);
+    background: url(../../assets/images/imagen_escuela.jpeg);
     background-position: center;
-    background-size: cover;
+    background-size:  cover;
+    filter: brightness(75%); 
+}
+
+.blurred-card {
+    backdrop-filter: blur(6px); 
+    background-color: rgba(14, 15, 15, 0.589); 
+    border-radius: 10px; 
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); 
+}
+
+
+.btn-spacing {
+    margin-bottom: 10px; 
 }
