@@ -2,9 +2,15 @@ import { element } from 'prop-types'
 import React from 'react'
 import UserCRUD from './components/users/UserCRUD'
 
+
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
 const Colors = React.lazy(() => import('./views/theme/colors/Colors'))
 const Typography = React.lazy(() => import('./views/theme/typography/Typography'))
+const Profile = React.lazy(() => import('./components/profile/profile'))
+const Staff = React.lazy(() => import('./components/staff/staff'))
+const Students = React.lazy(() => import('./components/registration/students'))
+const Tutors = React.lazy(() => import('./components/registration/tutors'))
+
 
 // Base
 const Accordion = React.lazy(() => import('./views/base/accordion/Accordion'))
@@ -57,6 +63,10 @@ const routes = [
   { path: '/', exact: true, name: 'Home' },
   { path: '/dashboard', name: 'Dashboard', element: Dashboard },
   { path: '/users', exact: true, name: 'Usuarios', element: UserCRUD },
+  { path: '/profile', name: 'Profile', element: Profile },
+  { path: '/staff', name: 'Staff', element: Staff },
+  { path: '/students', name: 'Students', element: Students },
+  { path: '/tutors', name: 'Tutors', element: Tutors },
   { path: '/theme', name: 'Theme', element: Colors, exact: true },
   { path: '/theme/colors', name: 'Colors', element: Colors },
   { path: '/theme/typography', name: 'Typography', element: Typography },
