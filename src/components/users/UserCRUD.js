@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   CButton,
   CCard,
@@ -21,11 +21,9 @@ import {
   CFormSelect, 
 } from '@coreui/react';
 
-const UserCRUD = () => {
+const UserCRUD = ({ currentUser }) => {
   const [users, setUsers] = useState([
-    { id: 1, DNI: 24567895, Firstname: 'John Doe', Lastname: 'Delgado', email: 'john@example.com', Rol: 'Admin' },
-    { id: 2, DNI: 22654798, Firstname: 'Mary', Lastname: 'Caceres', email: 'mary@example.com', Rol: 'Teacher' },
-    { id: 3, DNI: 22567897, Firstname: 'Alex', Lastname: 'Perez', email: 'alex@example.com', Rol: 'Tutor' },
+    { id: 1, DNI: '24567895', Firstname: 'John Doe', Lastname: 'Delgado', email: 'john@example.com', Rol: 'Admin' },
   ]);
   
   const [nextId, setNextId] = useState(4);
@@ -42,6 +40,12 @@ const UserCRUD = () => {
     email: '', 
     Rol: '' 
   });
+
+   useEffect(() => {
+    if (currentUser) {
+      console.log('Authenticated user:', currentUser);
+    }
+  }, [currentUser]);
 
   const handleAddUser = () => {
     setFormData({ DNI: '', Firstname: '', Lastname: '', email: '', Rol: '' });
@@ -93,7 +97,7 @@ const UserCRUD = () => {
 
   return (
     <CContainer fluid>
-      <CCard color='dark'>
+      <CCard>
         <CCardHeader>
           <h5>Users</h5>
           <CButton color="success" onClick={handleAddUser}>
@@ -101,7 +105,12 @@ const UserCRUD = () => {
           </CButton>
         </CCardHeader>
         <CCardBody>
-          <CTable bordered color='secondary' hover responsive>
+          {currentUser && (
+            <div className="mb-4">
+              <h6>Welcome, {currentUser.username}!</h6>
+            </div>
+          )}
+          <CTable bordered hover responsive>
             <CTableHead>
               <CTableRow>
                 <CTableHeaderCell>ID</CTableHeaderCell>
@@ -134,83 +143,85 @@ const UserCRUD = () => {
               ))}
             </CTableBody>
           </CTable>
-        </CCardBody>
-      </CCard>
 
-      <CModal visible={showAddModal || showEditModal} onClose={() => {
-        setShowAddModal(false);
-        setShowEditModal(false);
-      }}>
-        <CModalHeader>
-          <CModalTitle>{showAddModal ? 'Add User' : 'Edit User'}</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          <CForm>
-            <CFormInput
-              type="text"
-              label="DNI"
-              value={formData.DNI}
-              onChange={(e) => setFormData({ ...formData, DNI: e.target.value })}
-            />
-            <CFormInput
-              type="text"
-              label="Firstname"
-              value={formData.Firstname}
-              onChange={(e) => setFormData({ ...formData, Firstname: e.target.value })}
-            />
-            <CFormInput
-              type="text"
-              label="Lastname"
-              value={formData.Lastname}
-              onChange={(e) => setFormData({ ...formData, Lastname: e.target.value })}
-            />
-            <CFormInput
-              type="email"
-              label="Email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            />
-            <CFormSelect
-              label="Rol"
-              value={formData.Rol}
-              onChange={(e) => setFormData({ ...formData, Rol: e.target.value })}
-            >
-              <option value="">Select a role</option> 
-              <option value="Admin">Admin</option>
-              <option value="Teacher">Teacher</option>
-              <option value="Tutor">Tutor</option>
-            </CFormSelect>
-
-          </CForm>
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="success" onClick={handleSaveUser}>
-            Save
-          </CButton>
-          <CButton color="secondary" onClick={() => {
+          <CModal visible={showAddModal || showEditModal} onClose={() => {
             setShowAddModal(false);
             setShowEditModal(false);
           }}>
-            Cancel
-          </CButton>
-        </CModalFooter>
-      </CModal>
-      <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
-        <CModalHeader>
-          <CModalTitle>Confirm Deletion</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          Are you sure you want to delete the user {selectedUser?.Firstname}?
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="danger" onClick={handleConfirmDelete}>
-            Delete
-          </CButton>
-          <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancel
-          </CButton>
-        </CModalFooter>
-      </CModal>
+            <CModalHeader>
+              <CModalTitle>{showAddModal ? 'Add User' : 'Edit User'}</CModalTitle>
+            </CModalHeader>
+            <CModalBody>
+              <CForm>
+                <CFormInput
+                  type="text"
+                  label="DNI"
+                  value={formData.DNI}
+                  onChange={(e) => setFormData({ ...formData, DNI: e.target.value })}
+                />
+                <CFormInput
+                  type="text"
+                  label="Firstname"
+                  value={formData.Firstname}
+                  onChange={(e) => setFormData({ ...formData, Firstname: e.target.value })}
+                />
+                <CFormInput
+                  type="text"
+                  label="Lastname"
+                  value={formData.Lastname}
+                  onChange={(e) => setFormData({ ...formData, Lastname: e.target.value })}
+                />
+                <CFormInput
+                  type="email"
+                  label="Email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+                <CFormSelect
+                  label="Rol"
+                  value={formData.Rol}
+                  onChange={(e) => setFormData({ ...formData, Rol: e.target.value })}
+                >
+                  <option value="">Select a role</option> 
+                  <option value="Admin">Admin</option>
+                  <option value="Teacher">Teacher</option>
+                  <option value="Tutor">Tutor</option>
+                </CFormSelect>
+
+              </CForm>
+            </CModalBody>
+            <CModalFooter>
+              <CButton color="success" onClick={handleSaveUser}>
+                Save
+              </CButton>
+              <CButton color="secondary" onClick={() => {
+                setShowAddModal(false);
+                setShowEditModal(false);
+              }}>
+                Cancel
+              </CButton>
+            </CModalFooter>
+          </CModal>
+
+          <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
+            <CModalHeader>
+              <CModalTitle>Confirm Deletion</CModalTitle>
+            </CModalHeader>
+            <CModalBody>
+              Are you sure you want to delete the user {selectedUser?.Firstname}?
+            </CModalBody>
+            <CModalFooter>
+              <CButton color="danger" onClick={handleConfirmDelete}>
+                Delete
+              </CButton>
+              <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>
+                Cancel
+              </CButton>
+            </CModalFooter>
+          </CModal>
+
+        </CCardBody>
+      </CCard>
 
     </CContainer>
   );

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   CButton,
   CCard,
@@ -21,20 +22,25 @@ import {
   CFormSelect
 } from '@coreui/react';
 
+
 const StaffCRUD = () => {
   const [staffMembers, setStaffMembers] = useState([
-    { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin', active: true },
-    { id: 2, name: 'Mary Smith', email: 'mary@example.com', role: 'Teacher', active: true },
-    { id: 3, name: 'Alex Johnson', email: 'alex@example.com', role: 'Teacher', active: false },
+
   ]);
   
   const [nextId, setNextId] = useState(4);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedStaffMember, setSelectedStaffMember] = useState(null);
-  
-  
   const [formData, setFormData] = useState({ name: '', email: '', role: '', active: true });
+
+  const API_URL = 'http://localhost:3001/staffMembers';
+
+  useEffect(() => {
+    axios.get(API_URL)
+      .then((response) => setStaffMembers(response.data))
+      .catch((error) => console.error('Error fetching staff members:', error));
+  }, []);
 
   const handleAddStaff = () => {
     setFormData({ name: '', email: '', role: '', active: true });
@@ -50,20 +56,33 @@ const StaffCRUD = () => {
 
   const handleSaveStaff = () => {
     if (showAddModal) {
-      const newStaffMember = { ...formData, id: nextId };
-      setStaffMembers([...staffMembers, newStaffMember]);
-      setNextId(nextId + 1);
-      setShowAddModal(false);
+      axios.post(API_URL, formData)
+        .then((response) => {
+          setStaffMembers([...staffMembers, response.data]);
+          setShowAddModal(false);
+        })
+        .catch((error) => console.error('Error adding staff member:', error));
     } else if (showEditModal && selectedStaffMember) {
-      setStaffMembers(staffMembers.map((s) => (s.id === selectedStaffMember.id ? { ...selectedStaffMember, ...formData } : s)));
-      setShowEditModal(false);
+      axios.put(`${API_URL}/${selectedStaffMember.id}`, formData)
+        .then(() => {
+          setStaffMembers(
+            staffMembers.map((s) =>
+              s.id === selectedStaffMember.id ? { ...selectedStaffMember, ...formData } : s
+            )
+          );
+          setShowEditModal(false);
+        })
+        .catch((error) => console.error('Error updating staff member:', error));
     }
   };
 
   const handleConfirmDelete = (staffId) => {
-    setStaffMembers(staffMembers.filter((member) => member.id !== staffId));
-    setShowEditModal(false); 
-    alert('User deleted successfully');
+    axios.delete(`${API_URL}/${staffId}`)
+      .then(() => {
+        setStaffMembers(staffMembers.filter((member) => member.id !== staffId));
+        alert('User deleted successfully');
+      })
+      .catch((error) => console.error('Error deleting staff member:', error));
   };
 
   return (

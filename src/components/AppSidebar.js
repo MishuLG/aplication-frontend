@@ -20,6 +20,8 @@ import { sygnet } from 'src/assets/brand/sygnet'
 // sidebar nav config
 import navigation from '../_nav'
 
+import '../css/header.css'
+
 const AppSidebar = () => {
   const dispatch = useDispatch()
   const unfoldable = useSelector((state) => state.sidebarUnfoldable)
@@ -27,7 +29,7 @@ const AppSidebar = () => {
 
   return (
     <CSidebar
-      className="border-end"
+      className="simplebar border-end"
       colorScheme="dark"
       position="fixed"
       unfoldable={unfoldable}
@@ -38,7 +40,7 @@ const AppSidebar = () => {
     >
       <CSidebarHeader className="border-bottom">
         <CSidebarBrand to="/">
-          <CImage align='center' src='src/assets/images/icon.png' height={48}></CImage>
+          <CImage align='center' src='src/assets/images/icon.png' height={58}></CImage>
         </CSidebarBrand>
         <CCloseButton
           className="d-lg-none"

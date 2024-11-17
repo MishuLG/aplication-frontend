@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CButton,
   CCard,
@@ -19,6 +19,8 @@ import {
   CFormInput
 } from '@coreui/react';
 
+import axios from 'axios';
+
 const Students = () => {
   const [students, setStudents] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -28,20 +30,46 @@ const Students = () => {
   
   const [selectedStudent, setSelectedStudent] = useState(null);
 
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const response = await axios.get('http://localhost:3001/students');
+        setStudents(response.data);
+      } catch (error) {
+        console.error('Error fetching students:', error);
+      }
+    };
+
+    fetchStudents();
+  }, []);
+
   const handleAddStudent = () => {
     setFormData({ sectionId: '', schoolYearId: '', firstName: '', lastName: '', dateOfBirth: '', healthRecord: '' });
     setShowAddModal(true);
   };
 
-  const handleSaveStudent = () => {
-    if (selectedStudent) {
-      setStudents(students.map((student) => (student.id === selectedStudent.id ? { ...formData } : student)));
-    } else {
-      const newStudent = { id: students.length + 1, ...formData }; 
-      setStudents([...students, newStudent]);
+  const handleSaveStudent = async () => {
+    try {
+      if (selectedStudent) {
+        const response = await axios.put(
+          `http://localhost:3001/students/${selectedStudent.id}`,
+          formData
+        );
+        setStudents(
+          students.map((student) =>
+            student.id === selectedStudent.id ? response.data : student
+          )
+        );
+      } else {
+        const response = await axios.post('http://localhost:3001/students', formData);
+        setStudents([...students, response.data]);
+      }
+      setShowAddModal(false);
+      setSelectedStudent(null);
+    } catch (error) {
+      console.error('Error saving student:', error);
     }
-    setShowAddModal(false);
-    setSelectedStudent(null);
   };
 
   const handleDeleteStudent = (studentId) => {
@@ -49,11 +77,17 @@ const Students = () => {
     setShowDeleteModal(true);
   };
 
-  const handleConfirmDelete = () => {
-    setStudents(students.filter((student) => student.id !== selectedStudent.id));
-    setShowDeleteModal(false);
-    setSelectedStudent(null);
+  const handleConfirmDelete = async () => {
+    try {
+      await axios.delete(`http://localhost:3001/students/${selectedStudent.id}`);
+      setStudents(students.filter((student) => student.id !== selectedStudent.id));
+      setShowDeleteModal(false);
+      setSelectedStudent(null);
+    } catch (error) {
+      console.error('Error deleting student:', error);
+    }
   };
+
 
   return (
     <CCard>

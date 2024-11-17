@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect ,useState } from 'react';
 import {
   CCard,
   CCardBody,
@@ -11,14 +11,33 @@ import {
   CFormSelect
 } from '@coreui/react';
 
-const Profile = () => {
+const API_URL = 'http://localhost:3001/users'; 
+
+const Profile = ({ currentUser, setUsers }) => {
   const [profilePic, setProfilePic] = useState('https://via.placeholder.com/150');
-  const [name, setName] = useState('John Doe');
-  const [email, setEmail] = useState('johndoe@example.com');
-  const [phone, setPhone] = useState('123-456-7890');
-  const [address, setAddress] = useState('123 Main St, City, Country');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('Admin'); 
+  const [role, setRole] = useState('');
+
+  useEffect(() => {
+    if (currentUser) {
+      fetch(`${API_URL}/${currentUser.id}`)
+        .then(response => response.json())
+        .then(data => {
+          setName(`${data.Firstname} ${data.Lastname}`);
+          setEmail(data.email);
+          setPhone(data.phone || '');
+          setAddress(data.address || '');
+          setRole(data.role || '');
+          setProfilePic(data.profilePic || 'https://via.placeholder.com/150');
+        })
+        .catch(error => console.error('Error fetching user data:', error));
+    }
+  }, [currentUser]);
+
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -33,7 +52,39 @@ const Profile = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert('Updated profile data');
+
+    if (!name || !email || !role) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+
+    const updatedUser = {
+      id: currentUser.id,
+      DNI: currentUser.DNI, 
+      Firstname: name.split(' ')[0],
+      Lastname: name.split(' ')[1],
+      email,
+      phone,
+      address,
+      role,
+      profilePic
+    };
+
+    fetch(`${API_URL}/${currentUser.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updatedUser),
+    })
+    .then(response => response.json())
+    .then(() => {
+      setUsers((prevUsers) =>
+        prevUsers.map((user) => (user.id === currentUser.id ? updatedUser : user))
+      );
+      alert('Profile updated successfully!');
+    })
+    .catch(error => console.error('Error updating user data:', error));
   };
 
   return (
@@ -63,7 +114,7 @@ const Profile = () => {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Full name"
+              placeholder="Full name" required
             />
           </div>
           <div className="mb-3">
@@ -72,7 +123,7 @@ const Profile = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
+              placeholder="Email" required
             />
           </div>
           <div className="mb-3">
@@ -97,7 +148,7 @@ const Profile = () => {
             <CFormLabel>Rol</CFormLabel>
             <CFormSelect
               value={role}
-              onChange={(e) => setRole(e.target.value)}
+              onChange={(e) => setRole(e.target.value)} required
             >
               <option value="Admin">Admin</option>
               <option value="Teacher">Teacher</option>

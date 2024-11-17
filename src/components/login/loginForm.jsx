@@ -9,9 +9,9 @@ const LoginForm = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [showRecovery, setShowRecovery] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    onLogin(email, password);
+    await onLogin({ email, password });
   };
 
   const handlePasswordRecovery = (e) => {
@@ -46,7 +46,7 @@ const LoginForm = ({ onLogin }) => {
                 required 
               />
             </FormGroup>
-            <Button color='dark' variant="ghost" type="submit" className="btn-spacing"  block>Entrar</Button>
+            <Button color='dark' variant="ghost" type="submit" className="btn-spacing"  block>Enter</Button>
             <Button color="dark" variant="ghost"  className="btn-spacing" onClick={() => setShowRecovery(!showRecovery)} block>
               Forgot your password?
             </Button>
