@@ -1,7 +1,6 @@
-// fetch.js
-const API_URL = 'http://localhost:3001/users';
+const API_URL = 'http://localhost:4000/api/users';
 
-// Obtener todos los usuarios
+
 export const fetchUsers = async () => {
   const response = await fetch(API_URL);
   if (!response.ok) {
@@ -10,7 +9,7 @@ export const fetchUsers = async () => {
   return await response.json();
 };
 
-// Agregar un nuevo usuario
+
 export const addUser = async (user) => {
   const response = await fetch(API_URL, {
     method: 'POST',
@@ -25,7 +24,7 @@ export const addUser = async (user) => {
   return await response.json();
 };
 
-// Actualizar un usuario existente
+
 export const updateUser = async (id, user) => {
   const response = await fetch(`${API_URL}/${id}`, {
     method: 'PUT',
@@ -40,7 +39,7 @@ export const updateUser = async (id, user) => {
   return await response.json();
 };
 
-// Eliminar un usuario
+
 export const deleteUser = async (id) => {
   const response = await fetch(`${API_URL}/${id}`, {
     method: 'DELETE',
@@ -48,4 +47,5 @@ export const deleteUser = async (id) => {
   if (!response.ok) {
     throw new Error('Error al eliminar usuario');
   }
+  return await response.json();
 };

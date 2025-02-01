@@ -1,15 +1,22 @@
 import { element } from 'prop-types'
 import React from 'react'
-import UserCRUD from './components/users/UserCRUD'
 
 
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
 const Colors = React.lazy(() => import('./views/theme/colors/Colors'))
 const Typography = React.lazy(() => import('./views/theme/typography/Typography'))
 const Profile = React.lazy(() => import('./components/profile/profile'))
-const Staff = React.lazy(() => import('./components/staff/staff'))
 const Students = React.lazy(() => import('./components/registration/students'))
 const Tutors = React.lazy(() => import('./components/registration/tutors'))
+const UserCRUD = React.lazy(() => import('./components/users/UserCRUD'))
+const Sections = React.lazy(() => import('./components/Sections/sections'))
+const Subjects = React.lazy(() => import('./components/subjects/Subjects'))
+const SubjectsTaken = React.lazy(() => import('./components/subjectsTaken/SubjectsTaken'))
+const SchoolYear = React.lazy(() => import('./components/schoolYear/SchoolYear'))
+const ClassSchedules = React.lazy(() => import('./components/classSchedules/ClassSchedules'))
+const Attendance = React.lazy(() => import('./components/Attendance/Attendance'))
+const Evaluations = React.lazy(() => import('./components/Evaluations/Evaluations'))
+const GradeReports = React.lazy(() => import('./components/Newsletters/gradeReports'))
 
 
 // Base
@@ -62,9 +69,16 @@ const Widgets = React.lazy(() => import('./views/widgets/Widgets'))
 const routes = [
   { path: '/', exact: true, name: 'Home' },
   { path: '/dashboard', name: 'Dashboard', element: Dashboard },
+  { path: '/grade_reports', name: 'Grade Reports', element: GradeReports },
+  { path: '/evaluations', name: 'Evaluations', element: Evaluations },
+  { path: '/attendance', name: 'Attendance', element: Attendance },
+  { path: '/class_schedules', name: 'class schedules', element: ClassSchedules },
+  { path: '/subjects_taken', name: 'subjects taken', element: SubjectsTaken },
+  { path: '/school_year', name: 'school year', element: SchoolYear },
+  { path: '/subjects', name: 'subjects', element: Subjects },
+  { path: '/sections', name: 'sections', element: Sections },
   { path: '/users', name: 'Users', element: UserCRUD },
   { path: '/profile', name: 'Profile', element: Profile },
-  { path: '/staff', name: 'Staff', element: Staff },
   { path: '/students', name: 'Students', element: Students },
   { path: '/tutors', name: 'Tutors', element: Tutors },
   { path: '/theme', name: 'Theme', element: Colors, exact: true },

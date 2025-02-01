@@ -1,4 +1,4 @@
-import React, { useEffect ,useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   CCard,
   CCardBody,
@@ -8,10 +8,10 @@ import {
   CFormInput,
   CButton,
   CImage,
-  CFormSelect
+  CFormSelect,
 } from '@coreui/react';
 
-const API_URL = 'http://localhost:3001/users'; 
+const API_URL = 'http://localhost:3001/users';
 
 const Profile = ({ currentUser, setUsers }) => {
   const [profilePic, setProfilePic] = useState('https://via.placeholder.com/150');
@@ -25,8 +25,13 @@ const Profile = ({ currentUser, setUsers }) => {
   useEffect(() => {
     if (currentUser) {
       fetch(`${API_URL}/${currentUser.id}`)
-        .then(response => response.json())
-        .then(data => {
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
+        })
+        .then((data) => {
           setName(`${data.Firstname} ${data.Lastname}`);
           setEmail(data.email);
           setPhone(data.phone || '');
@@ -34,10 +39,9 @@ const Profile = ({ currentUser, setUsers }) => {
           setRole(data.role || '');
           setProfilePic(data.profilePic || 'https://via.placeholder.com/150');
         })
-        .catch(error => console.error('Error fetching user data:', error));
+        .catch((error) => console.error('Error fetching user data:', error));
     }
   }, [currentUser]);
-
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -60,14 +64,14 @@ const Profile = ({ currentUser, setUsers }) => {
 
     const updatedUser = {
       id: currentUser.id,
-      DNI: currentUser.DNI, 
+      DNI: currentUser.DNI,
       Firstname: name.split(' ')[0],
       Lastname: name.split(' ')[1],
       email,
       phone,
       address,
       role,
-      profilePic
+      profilePic,
     };
 
     fetch(`${API_URL}/${currentUser.id}`, {
@@ -77,14 +81,19 @@ const Profile = ({ currentUser, setUsers }) => {
       },
       body: JSON.stringify(updatedUser),
     })
-    .then(response => response.json())
-    .then(() => {
-      setUsers((prevUsers) =>
-        prevUsers.map((user) => (user.id === currentUser.id ? updatedUser : user))
-      );
-      alert('Profile updated successfully!');
-    })
-    .catch(error => console.error('Error updating user data:', error));
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(() => {
+        setUsers((prevUsers) =>
+          prevUsers.map((user) => (user.id === currentUser.id ? updatedUser : user))
+        );
+        alert('Profile updated successfully!');
+      })
+      .catch((error) => console.error('Error updating user data:', error));
   };
 
   return (
@@ -102,7 +111,7 @@ const Profile = ({ currentUser, setUsers }) => {
               id="upload-photo"
             />
             <CButton color="primary" size="sm" className="mt-2" onClick={() => document.getElementById('upload-photo').click()}>
-            Change Photo
+              Change Photo
             </CButton>
           </div>
         </div>
@@ -114,7 +123,8 @@ const Profile = ({ currentUser, setUsers }) => {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Full name" required
+              placeholder="Full name"
+              required
             />
           </div>
           <div className="mb-3">
@@ -123,7 +133,8 @@ const Profile = ({ currentUser, setUsers }) => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email" required
+              placeholder="Email"
+              required
             />
           </div>
           <div className="mb-3">
@@ -146,10 +157,7 @@ const Profile = ({ currentUser, setUsers }) => {
           </div>
           <div className="mb-3">
             <CFormLabel>Rol</CFormLabel>
-            <CFormSelect
-              value={role}
-              onChange={(e) => setRole(e.target.value)} required
-            >
+            <CFormSelect value={role} onChange={(e) => setRole(e.target.value)} required>
               <option value="Admin">Admin</option>
               <option value="Teacher">Teacher</option>
               <option value="Tutor">Tutor</option>
@@ -165,7 +173,7 @@ const Profile = ({ currentUser, setUsers }) => {
             />
           </div>
           <CButton color="success" type="submit" className="mt-3">
-          Save changes
+            Save changes
           </CButton>
         </CForm>
       </CCardBody>

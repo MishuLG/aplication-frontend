@@ -17,142 +17,151 @@ import {
   CModalFooter,
   CForm,
   CFormInput,
+  CFormSelect,
 } from '@coreui/react';
-
-import axios from 'axios';
 
 const Tutors = () => {
   const [tutors, setTutors] = useState([]);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedTutorId, setSelectedTutorId] = useState(null);
-
+  const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    idCard: '',
-    phoneNumber: '',
-    email: '',
-    dateOfBirth: '',
-    createdAt: new Date().toISOString().split('T')[0],
-    updatedAt: new Date().toISOString().split('T')[0],
-    isActive: true,
+    uid_users: '',
   });
-
+  const [showModal, setShowModal] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [selectedTutor, setSelectedTutor] = useState(null);
+  const [filter, setFilter] = useState({ uid_users: '' });
+
+  const API_URL = 'http://localhost:4000/api/tutors';
+  const USERS_API_URL = 'http://localhost:4000/api/users';
 
   useEffect(() => {
-    const fetchTutors = async () => {
-      try {
-        const response = await axios.get('http://localhost:3001/tutors');
-        setTutors(response.data);
-      } catch (error) {
-        console.error('Error fetching tutors:', error);
-      }
-    };
-
     fetchTutors();
+    fetchUsers();
   }, []);
+
+  const fetchTutors = async () => {
+    try {
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      setTutors(data);
+    } catch (error) {
+      console.error('Error fetching tutors:', error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch(USERS_API_URL);
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const getAvailableUsers = () => {
+    const assignedUserIds = tutors.map((tutor) => tutor.uid_users);
+    return users.filter((user) => !assignedUserIds.includes(user.uid_users));
+  };
 
   const handleSaveTutor = async () => {
     try {
-      if (selectedTutor) {
-        const response = await axios.put(
-          `http://localhost:3001/tutors/${selectedTutor.id}`,
-          formData
-        );
-        setTutors(
-          tutors.map((tutor) =>
-            tutor.id === selectedTutor.id ? response.data : tutor
-          )
-        );
-      } else {
-        const response = await axios.post('http://localhost:3001/tutors', formData);
-        setTutors([...tutors, response.data]);
-      }
-      setShowAddModal(false);
-      setSelectedTutor(null);
+      const method = editMode ? 'PUT' : 'POST';
+      const url = editMode ? `${API_URL}/${selectedTutor.id_tutor}` : API_URL;
+
+      await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      fetchTutors();
+      setShowModal(false);
+      resetForm();
     } catch (error) {
       console.error('Error saving tutor:', error);
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleEditTutor = (tutor) => {
+    setSelectedTutor(tutor);
+    setFormData({
+      uid_users: tutor.uid_users,
+    });
+    setEditMode(true);
+    setShowModal(true);
+  };
+
+  const handleDeleteTutor = async (id) => {
     try {
-      await axios.delete(`http://localhost:3001/tutors/${selectedTutorId}`);
-      setTutors(tutors.filter((tutor) => tutor.id !== selectedTutorId));
-      setShowDeleteModal(false);
-      setSelectedTutorId(null);
-      alert('Tutor successfully deleted');
+      await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      fetchTutors();
     } catch (error) {
       console.error('Error deleting tutor:', error);
     }
   };
 
-  const handleAddTutor = () => {
-    setFormData({
-      firstName: '',
-      lastName: '',
-      idCard: '',
-      phoneNumber: '',
-      email: '',
-      dateOfBirth: '',
-      createdAt: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString().split('T')[0],
-      isActive: true,
-    });
-    setShowAddModal(true);
+  const handleFilterChange = (e) => {
+    setFilter({ ...filter, [e.target.name]: e.target.value });
   };
 
-  const handleDeleteClick = (id) => {
-    setSelectedTutorId(id);
-    setShowDeleteModal(true);
+  const resetForm = () => {
+    setFormData({
+      uid_users: '',
+    });
+    setEditMode(false);
+    setSelectedTutor(null);
   };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    resetForm();
+  };
+
+  const filteredTutors = tutors.filter(
+    (tutor) => tutor.uid_users && tutor.uid_users.toString().includes(filter.uid_users)
+  );
 
   return (
     <CCard>
       <CCardHeader>
-        <h5>Registered Tutors</h5>
-        <CButton color="success" onClick={handleAddTutor}>
+        <h5>Tutors</h5>
+        <CButton color="success" onClick={() => setShowModal(true)}>
           Add Tutor
         </CButton>
       </CCardHeader>
-
       <CCardBody>
+        <div className="mb-3">
+          <CFormInput
+            placeholder="Filter by User ID"
+            name="uid_users"
+            value={filter.uid_users}
+            onChange={handleFilterChange}
+            className="mb-2"
+          />
+        </div>
         <CTable bordered hover responsive>
           <CTableHead>
             <CTableRow>
-              <CTableHeaderCell>Name</CTableHeaderCell>
-              <CTableHeaderCell>Lastname</CTableHeaderCell>
-              <CTableHeaderCell>ID Card</CTableHeaderCell>
-              <CTableHeaderCell>Telephone Number</CTableHeaderCell>
-              <CTableHeaderCell>Email</CTableHeaderCell>
-              <CTableHeaderCell>Birthdate</CTableHeaderCell>
+              <CTableHeaderCell>ID Tutor</CTableHeaderCell>
+              <CTableHeaderCell>User ID</CTableHeaderCell>
+              <CTableHeaderCell>Created At</CTableHeaderCell>
+              <CTableHeaderCell>Updated At</CTableHeaderCell>
               <CTableHeaderCell>Actions</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
-
           <CTableBody>
-            {tutors.map((tutor) => (
-              <CTableRow key={tutor.id}>
-                <CTableDataCell>{tutor.firstName}</CTableDataCell>
-                <CTableDataCell>{tutor.lastName}</CTableDataCell>
-                <CTableDataCell>{tutor.idCard}</CTableDataCell>
-                <CTableDataCell>{tutor.phoneNumber}</CTableDataCell>
-                <CTableDataCell>{tutor.email}</CTableDataCell>
-                <CTableDataCell>{tutor.dateOfBirth}</CTableDataCell>
+            {filteredTutors.map((tutor) => (
+              <CTableRow key={tutor.id_tutor}>
+                <CTableDataCell>{tutor.id_tutor}</CTableDataCell>
+                <CTableDataCell>{tutor.uid_users}</CTableDataCell>
+                <CTableDataCell>{tutor.created_at}</CTableDataCell>
+                <CTableDataCell>{tutor.updated_at}</CTableDataCell>
                 <CTableDataCell>
-                  <CButton
-                    color="warning"
-                    onClick={() => {
-                      setSelectedTutor(tutor);
-                      setFormData(tutor);
-                      setShowAddModal(true);
-                    }}
-                  >
+                  <CButton color="warning" size="sm" onClick={() => handleEditTutor(tutor)}>
                     Edit
                   </CButton>{' '}
-                  <CButton color="danger" onClick={() => handleDeleteClick(tutor.id)}>
+                  <CButton color="danger" size="sm" onClick={() => handleDeleteTutor(tutor.id_tutor)}>
                     Delete
                   </CButton>
                 </CTableDataCell>
@@ -161,73 +170,32 @@ const Tutors = () => {
           </CTableBody>
         </CTable>
 
-        <CModal visible={showAddModal} onClose={() => setShowAddModal(false)}>
+        <CModal visible={showModal} onClose={handleCloseModal}>
           <CModalHeader>
-            <CModalTitle>{selectedTutor ? 'Edit Tutor' : 'Add Tutor'}</CModalTitle>
+            <CModalTitle>{editMode ? 'Edit Tutor' : 'Add Tutor'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
             <CForm>
-              <CFormInput
-                type="text"
-                label="Name"
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              />
-              <CFormInput
-                type="text"
-                label="Lastname"
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              />
-              <CFormInput
-                type="text"
-                label="ID Card"
-                value={formData.idCard}
-                onChange={(e) => setFormData({ ...formData, idCard: e.target.value })}
-              />
-              <CFormInput
-                type="tel"
-                label="Telephone Number"
-                value={formData.phoneNumber}
-                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-              />
-              <CFormInput
-                type="email"
-                label="Email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-              <CFormInput
-                type="date"
-                label="Birthdate"
-                value={formData.dateOfBirth}
-                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-              />
+              <CFormSelect
+                label="User ID"
+                value={formData.uid_users}
+                onChange={(e) => setFormData({ ...formData, uid_users: e.target.value })}
+                required
+              >
+                <option value="">Select User</option>
+                {getAvailableUsers().map((user) => (
+                  <option key={user.uid_users} value={user.uid_users}>
+                    {user.first_name} {user.last_name} ({user.uid_users})
+                  </option>
+                ))}
+              </CFormSelect>
             </CForm>
           </CModalBody>
           <CModalFooter>
             <CButton color="success" onClick={handleSaveTutor}>
               Save
             </CButton>
-            <CButton color="secondary" onClick={() => setShowAddModal(false)}>
-              Cancel
-            </CButton>
-          </CModalFooter>
-        </CModal>
-
-        <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
-          <CModalHeader>
-            <CModalTitle>Confirm Deletion</CModalTitle>
-          </CModalHeader>
-          <CModalBody>
-            Are you sure you want to remove the tutor{' '}
-            {tutors.find((tutor) => tutor.id === selectedTutorId)?.firstName}?
-          </CModalBody>
-          <CModalFooter>
-            <CButton color="danger" onClick={handleConfirmDelete}>
-              Delete
-            </CButton>
-            <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>
+            <CButton color="secondary" onClick={handleCloseModal}>
               Cancel
             </CButton>
           </CModalFooter>

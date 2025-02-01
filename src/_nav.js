@@ -42,12 +42,6 @@ const _nav = [
     icon: <CIcon icon={cilUser} customClassName="nav-icon" />,
   },
   {
-    component: CNavItem,
-    name: 'staff',
-    to: '/staff',
-    icon: <CIcon icon={cilGroup} customClassName="nav-icon" />,
-  },
-  {
     component: CNavTitle,
     name: 'tools',
   },
@@ -80,34 +74,34 @@ const _nav = [
       {
         component: CNavItem,
         name: 'sections',
-        to: '/buttons/buttons',
+        to: '/sections',
       },
       {
         component: CNavItem,
-        name: 'subjecs',
-        to: '/buttons/button-groups',
+        name: 'subjects',
+        to: '/subjects',
       },
       {
         component: CNavItem,
         name: 'subjects taken',
-        to: '/buttons/dropdowns',
+        to: '/subjects_taken',
       },
       {
         component: CNavItem,
         name: 'School year',
-        to: '/',
+        to: '/school_year',
       },
       {
         component: CNavItem,
         name: 'Class Schedules',
-        to: '/',
+        to: '/class_schedules',
       },
     ],
   },
   {
     component: CNavItem,
     name: 'Attendance',
-    to: '/',
+    to: '/attendance',
     icon: <CIcon icon={cilMoodVeryGood} customClassName="nav-icon" />
   },
   {
@@ -118,12 +112,7 @@ const _nav = [
       {
         component: CNavItem,
         name: 'Evaluations',
-        to: '/forms/form-control',
-      },
-      {
-        component: CNavItem,
-        name: 'Grades',
-        to: '/forms/select',
+        to: '/evaluations',
       },
     ],
   },
@@ -135,7 +124,7 @@ const _nav = [
       {
         component: CNavItem,
         name: 'Grade Reports',
-        to: '/icons/coreui-icons',
+        to: '/grade_reports',
       },
     ],
   },
