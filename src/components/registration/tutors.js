@@ -19,6 +19,7 @@ import {
   CFormInput,
   CFormSelect,
 } from '@coreui/react';
+import API_URL from '../../../config';  
 
 const Tutors = () => {
   const [tutors, setTutors] = useState([]);
@@ -31,8 +32,8 @@ const Tutors = () => {
   const [selectedTutor, setSelectedTutor] = useState(null);
   const [filter, setFilter] = useState({ uid_users: '' });
 
-  const API_URL = 'http://localhost:4000/api/tutors';
-  const USERS_API_URL = 'http://localhost:4000/api/users';
+  const tutorsUrl = `${API_URL}/tutors`;
+  const usersUrl = `${API_URL}/users`;
 
   useEffect(() => {
     fetchTutors();
@@ -41,21 +42,28 @@ const Tutors = () => {
 
   const fetchTutors = async () => {
     try {
-      const response = await fetch(API_URL);
+      const response = await fetch(tutorsUrl);
       const data = await response.json();
-      setTutors(data);
+      if (Array.isArray(data)) {
+        setTutors(data);
+      } else {
+        console.error('Received data is not an array:', data);
+        alert('Error: Invalid data received.');
+      }
     } catch (error) {
       console.error('Error fetching tutors:', error);
+      alert('An error occurred while fetching tutors. Please try again.');
     }
   };
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(USERS_API_URL);
+      const response = await fetch(usersUrl);
       const data = await response.json();
       setUsers(data);
     } catch (error) {
       console.error('Error fetching users:', error);
+      alert('An error occurred while fetching users. Please try again.');
     }
   };
 
@@ -64,26 +72,31 @@ const Tutors = () => {
     return users.filter((user) => !assignedUserIds.includes(user.uid_users));
   };
 
-  const handleSaveTutor = async () => {
+  const saveTutor = async () => {
     try {
       const method = editMode ? 'PUT' : 'POST';
-      const url = editMode ? `${API_URL}/${selectedTutor.id_tutor}` : API_URL;
+      const url = editMode ? `${tutorsUrl}/${selectedTutor.id_tutor}` : tutorsUrl;
 
-      await fetch(url, {
+      const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
 
       fetchTutors();
       setShowModal(false);
       resetForm();
     } catch (error) {
       console.error('Error saving tutor:', error);
+      alert('An error occurred while saving the tutor. Please try again.');
     }
   };
 
-  const handleEditTutor = (tutor) => {
+  const editTutor = (tutor) => {
     setSelectedTutor(tutor);
     setFormData({
       uid_users: tutor.uid_users,
@@ -92,12 +105,20 @@ const Tutors = () => {
     setShowModal(true);
   };
 
-  const handleDeleteTutor = async (id) => {
+  const deleteTutor = async (id) => {
     try {
-      await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${tutorsUrl}/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
+
       fetchTutors();
     } catch (error) {
       console.error('Error deleting tutor:', error);
+      alert('An error occurred while deleting the tutor. Please try again.');
     }
   };
 
@@ -113,27 +134,27 @@ const Tutors = () => {
     setSelectedTutor(null);
   };
 
-  const handleCloseModal = () => {
+  const closeModal = () => {
     setShowModal(false);
     resetForm();
   };
 
-  const filteredTutors = tutors.filter(
-    (tutor) => tutor.uid_users && tutor.uid_users.toString().includes(filter.uid_users)
-  );
+  const filteredTutors = tutors.filter((tutor) => {
+    return tutor.uid_users && tutor.uid_users.toString().includes(filter.uid_users);
+  });
 
   return (
     <CCard>
       <CCardHeader>
-        <h5>Tutors</h5>
+        <h5>Tutores</h5>
         <CButton color="success" onClick={() => setShowModal(true)}>
-          Add Tutor
+          Agregar Tutor
         </CButton>
       </CCardHeader>
       <CCardBody>
         <div className="mb-3">
           <CFormInput
-            placeholder="Filter by User ID"
+            placeholder="Filtrar por ID de Usuario"
             name="uid_users"
             value={filter.uid_users}
             onChange={handleFilterChange}
@@ -144,10 +165,10 @@ const Tutors = () => {
           <CTableHead>
             <CTableRow>
               <CTableHeaderCell>ID Tutor</CTableHeaderCell>
-              <CTableHeaderCell>User ID</CTableHeaderCell>
-              <CTableHeaderCell>Created At</CTableHeaderCell>
-              <CTableHeaderCell>Updated At</CTableHeaderCell>
-              <CTableHeaderCell>Actions</CTableHeaderCell>
+              <CTableHeaderCell>ID Usuario</CTableHeaderCell>
+              <CTableHeaderCell>Creado En</CTableHeaderCell>
+              <CTableHeaderCell>Actualizado En</CTableHeaderCell>
+              <CTableHeaderCell>Acciones</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
@@ -158,11 +179,11 @@ const Tutors = () => {
                 <CTableDataCell>{tutor.created_at}</CTableDataCell>
                 <CTableDataCell>{tutor.updated_at}</CTableDataCell>
                 <CTableDataCell>
-                  <CButton color="warning" size="sm" onClick={() => handleEditTutor(tutor)}>
-                    Edit
+                  <CButton color="warning" size="sm" onClick={() => editTutor(tutor)}>
+                    Editar
                   </CButton>{' '}
-                  <CButton color="danger" size="sm" onClick={() => handleDeleteTutor(tutor.id_tutor)}>
-                    Delete
+                  <CButton color="danger" size="sm" onClick={() => deleteTutor(tutor.id_tutor)}>
+                    Eliminar
                   </CButton>
                 </CTableDataCell>
               </CTableRow>
@@ -170,19 +191,19 @@ const Tutors = () => {
           </CTableBody>
         </CTable>
 
-        <CModal visible={showModal} onClose={handleCloseModal}>
+        <CModal visible={showModal} onClose={closeModal}>
           <CModalHeader>
-            <CModalTitle>{editMode ? 'Edit Tutor' : 'Add Tutor'}</CModalTitle>
+            <CModalTitle>{editMode ? 'Editar Tutor' : 'Agregar Tutor'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
             <CForm>
               <CFormSelect
-                label="User ID"
+                label="ID de Usuario"
                 value={formData.uid_users}
                 onChange={(e) => setFormData({ ...formData, uid_users: e.target.value })}
                 required
               >
-                <option value="">Select User</option>
+                <option value="">Seleccionar Usuario</option>
                 {getAvailableUsers().map((user) => (
                   <option key={user.uid_users} value={user.uid_users}>
                     {user.first_name} {user.last_name} ({user.uid_users})
@@ -192,11 +213,11 @@ const Tutors = () => {
             </CForm>
           </CModalBody>
           <CModalFooter>
-            <CButton color="success" onClick={handleSaveTutor}>
-              Save
+            <CButton color="success" onClick={saveTutor}>
+              Guardar
             </CButton>
-            <CButton color="secondary" onClick={handleCloseModal}>
-              Cancel
+            <CButton color="secondary" onClick={closeModal}>
+              Cancelar
             </CButton>
           </CModalFooter>
         </CModal>

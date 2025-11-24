@@ -20,6 +20,7 @@ import {
   CFormTextarea,
   CFormSelect,
 } from '@coreui/react';
+import API_URL from '../../../config';
 
 const Evaluations = () => {
   const [evaluations, setEvaluations] = useState([]);
@@ -39,7 +40,7 @@ const Evaluations = () => {
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [filter, setFilter] = useState({ id_student: '', id_subject: '' });
 
-  const API_URL = 'http://localhost:4000/api/evaluations';
+  const evaluationsUrl = `${API_URL}/evaluations`;
 
   useEffect(() => {
     fetchEvaluations();
@@ -47,29 +48,33 @@ const Evaluations = () => {
 
   const fetchEvaluations = async () => {
     try {
-      const response = await fetch(API_URL);
+      const response = await fetch(evaluationsUrl);
       const data = await response.json();
-      setEvaluations(data);
+      if (Array.isArray(data)) {
+        setEvaluations(data);
+      } else {
+        console.error('Received data is not an array:', data);
+        alert('Error: Datos recibidos no son válidos.');
+      }
     } catch (error) {
       console.error('Error fetching evaluations:', error);
+      alert('Ocurrió un error al obtener las evaluaciones. Por favor, inténtelo de nuevo.');
     }
   };
 
   const handleSaveEvaluation = async () => {
     try {
-      const url = editMode ? `${API_URL}/${selectedEvaluation.id_evaluations}` : API_URL;
       const method = editMode ? 'PUT' : 'POST';
+      const url = editMode ? `${evaluationsUrl}/${selectedEvaluation.id_evaluations}` : evaluationsUrl;
 
       const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        method,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error('Server response error');
       }
 
       fetchEvaluations();
@@ -77,6 +82,7 @@ const Evaluations = () => {
       resetForm();
     } catch (error) {
       console.error('Error saving evaluation:', error);
+      alert('Ocurrió un error al guardar la evaluación. Por favor, inténtelo de nuevo.');
     }
   };
 
@@ -99,17 +105,16 @@ const Evaluations = () => {
 
   const handleDeleteEvaluation = async (id) => {
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`${evaluationsUrl}/${id}`, { method: 'DELETE' });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error('Server response error');
       }
 
       fetchEvaluations();
     } catch (error) {
       console.error('Error deleting evaluation:', error);
+      alert('Ocurrió un error al eliminar la evaluación. Por favor, inténtelo de nuevo.');
     }
   };
 
@@ -147,22 +152,22 @@ const Evaluations = () => {
   return (
     <CCard>
       <CCardHeader>
-        <h5>Evaluations</h5>
+        <h5>Evaluaciones</h5>
         <CButton color="success" onClick={() => setShowModal(true)}>
-          Add Evaluation
+          Agregar Evaluación
         </CButton>
       </CCardHeader>
       <CCardBody>
         <div className="mb-3">
           <CFormInput
-            placeholder="Filter by student ID"
+            placeholder="Filtrar por ID de estudiante"
             name="id_student"
             value={filter.id_student}
             onChange={handleFilterChange}
             className="mb-2"
           />
           <CFormInput
-            placeholder="Filter by subject ID"
+            placeholder="Filtrar por ID de asignatura"
             name="id_subject"
             value={filter.id_subject}
             onChange={handleFilterChange}
@@ -171,19 +176,19 @@ const Evaluations = () => {
         <CTable bordered hover responsive>
           <CTableHead>
             <CTableRow>
-              <CTableHeaderCell>ID Evaluation</CTableHeaderCell>
-              <CTableHeaderCell>Student ID</CTableHeaderCell>
-              <CTableHeaderCell>Subject ID</CTableHeaderCell>
-              <CTableHeaderCell>Class Schedule ID</CTableHeaderCell>
-              <CTableHeaderCell>Total Rating</CTableHeaderCell>
-              <CTableHeaderCell>Date</CTableHeaderCell>
-              <CTableHeaderCell>Score</CTableHeaderCell>
-              <CTableHeaderCell>Max Score</CTableHeaderCell>
-              <CTableHeaderCell>Remarks</CTableHeaderCell>
-              <CTableHeaderCell>Type</CTableHeaderCell>
-              <CTableHeaderCell>Created At</CTableHeaderCell>
-              <CTableHeaderCell>Updated At</CTableHeaderCell>
-              <CTableHeaderCell>Actions</CTableHeaderCell>
+              <CTableHeaderCell>ID Evaluación</CTableHeaderCell>
+              <CTableHeaderCell>ID Estudiante</CTableHeaderCell>
+              <CTableHeaderCell>ID Asignatura</CTableHeaderCell>
+              <CTableHeaderCell>ID Horario de Clase</CTableHeaderCell>
+              <CTableHeaderCell>Calificación Total</CTableHeaderCell>
+              <CTableHeaderCell>Fecha</CTableHeaderCell>
+              <CTableHeaderCell>Puntaje</CTableHeaderCell>
+              <CTableHeaderCell>Puntaje Máximo</CTableHeaderCell>
+              <CTableHeaderCell>Observaciones</CTableHeaderCell>
+              <CTableHeaderCell>Tipo</CTableHeaderCell>
+              <CTableHeaderCell>Creado En</CTableHeaderCell>
+              <CTableHeaderCell>Actualizado En</CTableHeaderCell>
+              <CTableHeaderCell>Acciones</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
@@ -207,14 +212,14 @@ const Evaluations = () => {
                     size="sm"
                     onClick={() => handleEditEvaluation(evaluation)}
                   >
-                    Edit
+                    Editar
                   </CButton>{' '}
                   <CButton
                     color="danger"
                     size="sm"
                     onClick={() => handleDeleteEvaluation(evaluation.id_evaluations)}
                   >
-                    Delete
+                    Eliminar
                   </CButton>
                 </CTableDataCell>
               </CTableRow>
@@ -224,82 +229,82 @@ const Evaluations = () => {
 
         <CModal visible={showModal} onClose={handleCloseModal}>
           <CModalHeader>
-            <CModalTitle>{editMode ? 'Edit Evaluation' : 'Add Evaluation'}</CModalTitle>
+            <CModalTitle>{editMode ? 'Editar Evaluación' : 'Agregar Evaluación'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
             <CForm>
               <CFormInput
                 type="text"
-                label="Student ID"
+                label="ID Estudiante"
                 value={formData.id_student}
                 onChange={(e) => setFormData({ ...formData, id_student: e.target.value })}
                 required
               />
               <CFormInput
                 type="text"
-                label="Subject ID"
+                label="ID Asignatura"
                 value={formData.id_subject}
                 onChange={(e) => setFormData({ ...formData, id_subject: e.target.value })}
                 required
               />
               <CFormInput
                 type="text"
-                label="Class Schedule ID"
+                label="ID Horario de Clase"
                 value={formData.id_class_schedules}
                 onChange={(e) => setFormData({ ...formData, id_class_schedules: e.target.value })}
                 required
               />
               <CFormInput
                 type="number"
-                label="Total Rating"
+                label="Calificación Total"
                 value={formData.total_rating}
                 onChange={(e) => setFormData({ ...formData, total_rating: e.target.value })}
               />
               <CFormInput
                 type="date"
-                label="Date of Evaluation"
+                label="Fecha de Evaluación"
                 value={formData.date_evaluation}
                 onChange={(e) => setFormData({ ...formData, date_evaluation: e.target.value })}
                 required
               />
               <CFormInput
                 type="number"
-                label="Score"
+                label="Puntaje"
                 value={formData.score}
                 onChange={(e) => setFormData({ ...formData, score: e.target.value })}
                 required
               />
               <CFormInput
                 type="number"
-                label="Max Score"
+                label="Puntaje Máximo"
                 value={formData.max_score}
                 onChange={(e) => setFormData({ ...formData, max_score: e.target.value })}
                 required
               />
               <CFormTextarea
-                label="Remarks"
+                label="Observaciones"
                 value={formData.remarks}
                 onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
                 rows="3"
               />
               <CFormSelect
-                label="Evaluation Type"
+                label="Tipo de Evaluación"
                 value={formData.evaluation_type}
                 onChange={(e) => setFormData({ ...formData, evaluation_type: e.target.value })}
                 required
               >
-                <option value="">Select Evaluation Type</option>
-                <option value="summative">Exam</option>
-                <option value="formative">Quiz</option>
+                <option value="">Seleccionar Tipo de Evaluación</option>
+                <option value="summative">Examen</option>
+                <option value="formative">Prueba</option>
               </CFormSelect>
             </CForm>
           </CModalBody>
           <CModalFooter>
             <CButton color="success" onClick={handleSaveEvaluation}>
-              Save
+              Guardar
             </CButton>
             <CButton color="secondary" onClick={handleCloseModal}>
-              Cancel
+              Cancelar
             </CButton>
           </CModalFooter>
         </CModal>

@@ -18,6 +18,7 @@ import {
   CForm,
   CFormInput,
 } from '@coreui/react';
+import API_URL from '../../../config';  
 
 const SubjectsTaken = () => {
   const [subjectsTaken, setSubjectsTaken] = useState([]);
@@ -32,7 +33,7 @@ const SubjectsTaken = () => {
   const [selectedSubjectTaken, setSelectedSubjectTaken] = useState(null);
   const [filter, setFilter] = useState({ id_student: '', id_school_year: '' });
 
-  const API_URL = 'http://localhost:4000/api/subjects_taken';
+  const subjectsTakenUrl = `${API_URL}/subjects_taken`;
 
   useEffect(() => {
     fetchSubjectsTaken();
@@ -40,20 +41,21 @@ const SubjectsTaken = () => {
 
   const fetchSubjectsTaken = async () => {
     try {
-      const response = await fetch(API_URL);
+      const response = await fetch(subjectsTakenUrl);
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error('Error de respuesta de la red');
       }
       const data = await response.json();
       setSubjectsTaken(data);
     } catch (error) {
-      console.error('Error fetching subjects taken:', error);
+      console.error('Error al obtener las asignaturas tomadas:', error);
+      alert('Ocurrió un error al obtener las asignaturas tomadas. Por favor, inténtelo de nuevo.');
     }
   };
 
   const handleSaveSubjectTaken = async () => {
     try {
-      const url = editMode ? `${API_URL}/${selectedSubjectTaken.id_subject_taken}` : API_URL;
+      const url = editMode ? `${subjectsTakenUrl}/${selectedSubjectTaken.id_subject_taken}` : subjectsTakenUrl;
       const method = editMode ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -65,14 +67,15 @@ const SubjectsTaken = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error('Error de respuesta de la red');
       }
 
       fetchSubjectsTaken();
       setShowModal(false);
       resetForm();
     } catch (error) {
-      console.error('Error saving subject taken:', error);
+      console.error('Error al guardar la asignatura tomada:', error);
+      alert('Ocurrió un error al guardar la asignatura tomada. Por favor, inténtelo de nuevo.');
     }
   };
 
@@ -90,17 +93,18 @@ const SubjectsTaken = () => {
 
   const handleDeleteSubjectTaken = async (id) => {
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
+      const response = await fetch(`${subjectsTakenUrl}/${id}`, {
         method: 'DELETE',
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error('Error de respuesta de la red');
       }
 
       fetchSubjectsTaken();
     } catch (error) {
-      console.error('Error deleting subject taken:', error);
+      console.error('Error al eliminar la asignatura tomada:', error);
+      alert('Ocurrió un error al eliminar la asignatura tomada. Por favor, inténtelo de nuevo.');
     }
   };
 
@@ -133,22 +137,22 @@ const SubjectsTaken = () => {
   return (
     <CCard>
       <CCardHeader>
-        <h5>Subjects Taken</h5>
+        <h5>Asignaturas Tomadas</h5>
         <CButton color="success" onClick={() => setShowModal(true)}>
-          Add Subject Taken
+          Agregar Asignatura Tomada
         </CButton>
       </CCardHeader>
       <CCardBody>
         <div className="mb-3">
           <CFormInput
-            placeholder="Filter by student ID"
+            placeholder="Filtrar por ID de estudiante"
             name="id_student"
             value={filter.id_student}
             onChange={handleFilterChange}
             className="mb-2"
           />
           <CFormInput
-            placeholder="Filter by school year ID"
+            placeholder="Filtrar por ID de año escolar"
             name="id_school_year"
             value={filter.id_school_year}
             onChange={handleFilterChange}
@@ -157,14 +161,14 @@ const SubjectsTaken = () => {
         <CTable bordered hover responsive>
           <CTableHead>
             <CTableRow>
-              <CTableHeaderCell>ID Subject Taken</CTableHeaderCell>
-              <CTableHeaderCell>Student ID</CTableHeaderCell>
-              <CTableHeaderCell>Subject ID</CTableHeaderCell>
-              <CTableHeaderCell>School Year ID</CTableHeaderCell>
-              <CTableHeaderCell>Final Grade</CTableHeaderCell>
-              <CTableHeaderCell>Created At</CTableHeaderCell>
-              <CTableHeaderCell>Updated At</CTableHeaderCell>
-              <CTableHeaderCell>Actions</CTableHeaderCell>
+              <CTableHeaderCell>ID Asignatura Tomada</CTableHeaderCell>
+              <CTableHeaderCell>ID Estudiante</CTableHeaderCell>
+              <CTableHeaderCell>ID Asignatura</CTableHeaderCell>
+              <CTableHeaderCell>ID Año Escolar</CTableHeaderCell>
+              <CTableHeaderCell>Calificación Final</CTableHeaderCell>
+              <CTableHeaderCell>Creado En</CTableHeaderCell>
+              <CTableHeaderCell>Actualizado En</CTableHeaderCell>
+              <CTableHeaderCell>Acciones</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
@@ -178,19 +182,19 @@ const SubjectsTaken = () => {
                 <CTableDataCell>{subjectTaken.created_at}</CTableDataCell>
                 <CTableDataCell>{subjectTaken.updated_at}</CTableDataCell>
                 <CTableDataCell>
-                  <CButton
+                  {/*<CButton
                     color="warning"
                     size="sm"
                     onClick={() => handleEditSubjectTaken(subjectTaken)}
                   >
-                    Edit
-                  </CButton>{' '}
+                     Editar 
+                  </CButton>{' '}*/}
                   <CButton
                     color="danger"
                     size="sm"
                     onClick={() => handleDeleteSubjectTaken(subjectTaken.id_subject_taken)}
                   >
-                    Delete
+                    Eliminar
                   </CButton>
                 </CTableDataCell>
               </CTableRow>
@@ -200,34 +204,34 @@ const SubjectsTaken = () => {
 
         <CModal visible={showModal} onClose={handleCloseModal}>
           <CModalHeader>
-            <CModalTitle>{editMode ? 'Edit Subject Taken' : 'Add Subject Taken'}</CModalTitle>
+            <CModalTitle>{editMode ? 'Editar Asignatura Tomada' : 'Agregar Asignatura Tomada'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
             <CForm>
               <CFormInput
                 type="text"
-                label="Student ID"
+                label="ID Estudiante"
                 value={formData.id_student}
                 onChange={(e) => setFormData({ ...formData, id_student: e.target.value })}
                 required
               />
               <CFormInput
                 type="text"
-                label="Subject ID"
+                label="ID Asignatura"
                 value={formData.id_subject}
                 onChange={(e) => setFormData({ ...formData, id_subject: e.target.value })}
                 required
               />
               <CFormInput
                 type="text"
-                label="School Year ID"
+                label="ID Año Escolar"
                 value={formData.id_school_year}
                 onChange={(e) => setFormData({ ...formData, id_school_year: e.target.value })}
                 required
               />
               <CFormInput
                 type="number"
-                label="Final Grade"
+                label="Calificación Final"
                 value={formData.final_grade}
                 onChange={(e) => setFormData({ ...formData, final_grade: e.target.value })}
                 required
@@ -236,10 +240,10 @@ const SubjectsTaken = () => {
           </CModalBody>
           <CModalFooter>
             <CButton color="success" onClick={handleSaveSubjectTaken}>
-              Save
+              Guardar
             </CButton>
             <CButton color="secondary" onClick={handleCloseModal}>
-              Cancel
+              Cancelar
             </CButton>
           </CModalFooter>
         </CModal>

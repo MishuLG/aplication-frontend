@@ -9,39 +9,51 @@ import {
   CButton,
   CImage,
   CFormSelect,
+  CModal,
+  CModalHeader,
+  CModalTitle,
+  CModalBody,
+  CModalFooter,
 } from '@coreui/react';
-
-const API_URL = 'http://localhost:3001/users';
+import API_URL from '../../../config';
 
 const Profile = ({ currentUser, setUsers }) => {
   const [profilePic, setProfilePic] = useState('https://via.placeholder.com/150');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [dni, setDni] = useState('');
+  const [numberTlf, setNumberTlf] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [gender, setGender] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+
+  const usersUrl = `${API_URL}/users`;
 
   useEffect(() => {
     if (currentUser) {
-      fetch(`${API_URL}/${currentUser.id}`)
+      fetch(`${usersUrl}/${currentUser.id}`)
         .then((response) => {
           if (!response.ok) {
-            throw new Error('Network response was not ok');
+            throw new Error('Error en la respuesta del servidor');
           }
           return response.json();
         })
         .then((data) => {
-          setName(`${data.Firstname} ${data.Lastname}`);
+          setFirstName(data.first_name);
+          setLastName(data.last_name);
+          setDni(data.dni);
+          setNumberTlf(data.number_tlf);
           setEmail(data.email);
-          setPhone(data.phone || '');
-          setAddress(data.address || '');
-          setRole(data.role || '');
+          setDateOfBirth(data.date_of_birth);
+          setGender(data.gender);
           setProfilePic(data.profilePic || 'https://via.placeholder.com/150');
         })
-        .catch((error) => console.error('Error fetching user data:', error));
+        .catch((error) => console.error('Error al obtener los datos del usuario:', error));
     }
-  }, [currentUser]);
+  }, [currentUser, usersUrl]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -57,24 +69,25 @@ const Profile = ({ currentUser, setUsers }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!name || !email || !role) {
-      alert('Please fill in all required fields.');
+    if (!firstName || !lastName || !dni || !numberTlf || !email || !dateOfBirth || !gender) {
+      alert('Por favor, complete todos los campos requeridos.');
       return;
     }
 
     const updatedUser = {
       id: currentUser.id,
-      DNI: currentUser.DNI,
-      Firstname: name.split(' ')[0],
-      Lastname: name.split(' ')[1],
+      first_name: firstName,
+      last_name: lastName,
+      dni,
+      number_tlf: numberTlf,
       email,
-      phone,
-      address,
-      role,
+      password,
+      date_of_birth: dateOfBirth,
+      gender,
       profilePic,
     };
 
-    fetch(`${API_URL}/${currentUser.id}`, {
+    fetch(`${usersUrl}/${currentUser.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -83,7 +96,7 @@ const Profile = ({ currentUser, setUsers }) => {
     })
       .then((response) => {
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error('Error en la respuesta del servidor');
         }
         return response.json();
       })
@@ -91,14 +104,38 @@ const Profile = ({ currentUser, setUsers }) => {
         setUsers((prevUsers) =>
           prevUsers.map((user) => (user.id === currentUser.id ? updatedUser : user))
         );
-        alert('Profile updated successfully!');
+        alert('Perfil actualizado correctamente!');
+        setShowModal(false);
       })
-      .catch((error) => console.error('Error updating user data:', error));
+      .catch((error) => console.error('Error al actualizar los datos del usuario:', error));
+  };
+
+  const handleDelete = () => {
+    if (window.confirm('¿Está seguro de que desea eliminar este usuario?')) {
+      fetch(`${usersUrl}/${currentUser.id}`, {
+        method: 'DELETE',
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Error en la respuesta del servidor');
+          }
+          return response.json();
+        })
+        .then(() => {
+          setUsers((prevUsers) => prevUsers.filter((user) => user.id !== currentUser.id));
+          alert('Usuario eliminado correctamente!');
+        })
+        .catch((error) => console.error('Error al eliminar el usuario:', error));
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
   };
 
   return (
     <CCard>
-      <CCardHeader>User Profile</CCardHeader>
+      <CCardHeader>Perfil de usuario</CCardHeader>
       <CCardBody>
         <div className="text-center mb-4">
           <CImage src={profilePic} className="img-thumbnail" width="150" height="150" alt="Profile" />
@@ -111,19 +148,49 @@ const Profile = ({ currentUser, setUsers }) => {
               id="upload-photo"
             />
             <CButton color="primary" size="sm" className="mt-2" onClick={() => document.getElementById('upload-photo').click()}>
-              Change Photo
+              Cambiar foto
             </CButton>
           </div>
         </div>
 
         <CForm onSubmit={handleSubmit}>
           <div className="mb-3">
-            <CFormLabel>Name</CFormLabel>
+            <CFormLabel>Nombre</CFormLabel>
             <CFormInput
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Full name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Nombre"
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <CFormLabel>Apellido</CFormLabel>
+            <CFormInput
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Apellido"
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <CFormLabel>DNI</CFormLabel>
+            <CFormInput
+              type="text"
+              value={dni}
+              onChange={(e) => setDni(e.target.value)}
+              placeholder="DNI"
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <CFormLabel>Teléfono</CFormLabel>
+            <CFormInput
+              type="tel"
+              value={numberTlf}
+              onChange={(e) => setNumberTlf(e.target.value)}
+              placeholder="Número de teléfono"
               required
             />
           </div>
@@ -138,42 +205,36 @@ const Profile = ({ currentUser, setUsers }) => {
             />
           </div>
           <div className="mb-3">
-            <CFormLabel>Phone</CFormLabel>
+            <CFormLabel>Fecha de Nacimiento</CFormLabel>
             <CFormInput
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Phone number"
+              type="date"
+              value={dateOfBirth}
+              onChange={(e) => setDateOfBirth(e.target.value)}
+              required
             />
           </div>
           <div className="mb-3">
-            <CFormLabel>Address</CFormLabel>
-            <CFormInput
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Full address"
-            />
-          </div>
-          <div className="mb-3">
-            <CFormLabel>Rol</CFormLabel>
-            <CFormSelect value={role} onChange={(e) => setRole(e.target.value)} required>
-              <option value="Admin">Admin</option>
-              <option value="Teacher">Teacher</option>
-              <option value="Tutor">Tutor</option>
+            <CFormLabel>Género</CFormLabel>
+            <CFormSelect value={gender} onChange={(e) => setGender(e.target.value)} required>
+              <option value="Male">Masculino</option>
+              <option value="Female">Femenino</option>
+              <option value="Other">Otro</option>
             </CFormSelect>
           </div>
           <div className="mb-3">
-            <CFormLabel>Password</CFormLabel>
+            <CFormLabel>Contraseña</CFormLabel>
             <CFormInput
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="New password"
+              placeholder="Nueva contraseña"
             />
           </div>
           <CButton color="success" type="submit" className="mt-3">
-            Save changes
+            Guardar cambios
+          </CButton>
+          <CButton color="danger" className="mt-3 ms-2" onClick={handleDelete}>
+            Eliminar usuario
           </CButton>
         </CForm>
       </CCardBody>

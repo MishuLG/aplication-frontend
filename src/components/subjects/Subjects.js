@@ -19,6 +19,7 @@ import {
   CFormInput,
   CFormTextarea,
 } from '@coreui/react';
+import API_URL from '../../../config';  
 
 const Subjects = () => {
   const [subjects, setSubjects] = useState([]);
@@ -33,7 +34,7 @@ const Subjects = () => {
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [filter, setFilter] = useState({ name_subject: '', id_school_year: '' });
 
-  const API_URL = 'http://localhost:4000/api/subjects';
+  const subjectsUrl = `${API_URL}/subjects`;
 
   useEffect(() => {
     fetchSubjects();
@@ -41,30 +42,41 @@ const Subjects = () => {
 
   const fetchSubjects = async () => {
     try {
-      const response = await fetch(API_URL);
+      const response = await fetch(subjectsUrl);
       const data = await response.json();
-      setSubjects(data);
+      if (Array.isArray(data)) {
+        setSubjects(data);
+      } else {
+        console.error('Received data is not an array:', data);
+        alert('Error: Invalid data received.');
+      }
     } catch (error) {
       console.error('Error fetching subjects:', error);
+      alert('An error occurred while fetching subjects. Please try again.');
     }
   };
 
   const handleSaveSubject = async () => {
     try {
       const method = editMode ? 'PUT' : 'POST';
-      const url = editMode ? `${API_URL}/${selectedSubject.id_subject}` : API_URL;
+      const url = editMode ? `${subjectsUrl}/${selectedSubject.id_subject}` : subjectsUrl;
 
-      await fetch(url, {
+      const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
 
       fetchSubjects();
       setShowModal(false);
       resetForm();
     } catch (error) {
       console.error('Error saving subject:', error);
+      alert('An error occurred while saving the subject. Please try again.');
     }
   };
 
@@ -82,10 +94,16 @@ const Subjects = () => {
 
   const handleDeleteSubject = async (id) => {
     try {
-      await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${subjectsUrl}/${id}`, { method: 'DELETE' });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
+
       fetchSubjects();
     } catch (error) {
       console.error('Error deleting subject:', error);
+      alert('An error occurred while deleting the subject. Please try again.');
     }
   };
 
@@ -118,22 +136,22 @@ const Subjects = () => {
   return (
     <CCard>
       <CCardHeader>
-        <h5>Subjects</h5>
+        <h5>Asignaturas</h5>
         <CButton color="success" onClick={() => setShowModal(true)}>
-          Add Subject
+          Agregar Asignatura
         </CButton>
       </CCardHeader>
       <CCardBody>
         <div className="mb-3">
           <CFormInput
-            placeholder="Filter by subject name"
+            placeholder="Filtrar por nombre de asignatura"
             name="name_subject"
             value={filter.name_subject}
             onChange={handleFilterChange}
             className="mb-2"
           />
           <CFormInput
-            placeholder="Filter by school year ID"
+            placeholder="Filtrar por ID de año escolar"
             name="id_school_year"
             value={filter.id_school_year}
             onChange={handleFilterChange}
@@ -142,14 +160,14 @@ const Subjects = () => {
         <CTable bordered hover responsive>
           <CTableHead>
             <CTableRow>
-              <CTableHeaderCell>ID Subject</CTableHeaderCell>
-              <CTableHeaderCell>Class Schedule ID</CTableHeaderCell>
-              <CTableHeaderCell>School Year ID</CTableHeaderCell>
-              <CTableHeaderCell>Subject Name</CTableHeaderCell>
-              <CTableHeaderCell>Description</CTableHeaderCell>
-              <CTableHeaderCell>Created At</CTableHeaderCell>
-              <CTableHeaderCell>Updated At</CTableHeaderCell>
-              <CTableHeaderCell>Actions</CTableHeaderCell>
+              <CTableHeaderCell>ID Asignatura</CTableHeaderCell>
+              <CTableHeaderCell>ID Horario de Clase</CTableHeaderCell>
+              <CTableHeaderCell>ID Año Escolar</CTableHeaderCell>
+              <CTableHeaderCell>Nombre de Asignatura</CTableHeaderCell>
+              <CTableHeaderCell>Descripción</CTableHeaderCell>
+              <CTableHeaderCell>Creado En</CTableHeaderCell>
+              <CTableHeaderCell>Actualizado En</CTableHeaderCell>
+              <CTableHeaderCell>Acciones</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
@@ -164,10 +182,10 @@ const Subjects = () => {
                 <CTableDataCell>{subject.updated_at}</CTableDataCell>
                 <CTableDataCell>
                   <CButton color="warning" size="sm" onClick={() => handleEditSubject(subject)}>
-                    Edit
+                    Editar
                   </CButton>{' '}
                   <CButton color="danger" size="sm" onClick={() => handleDeleteSubject(subject.id_subject)}>
-                    Delete
+                    Eliminar
                   </CButton>
                 </CTableDataCell>
               </CTableRow>
@@ -177,33 +195,33 @@ const Subjects = () => {
 
         <CModal visible={showModal} onClose={handleCloseModal}>
           <CModalHeader>
-            <CModalTitle>{editMode ? 'Edit Subject' : 'Add Subject'}</CModalTitle>
+            <CModalTitle>{editMode ? 'Editar Asignatura' : 'Agregar Asignatura'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
             <CForm>
               <CFormInput
                 type="text"
-                label="Class Schedule ID"
+                label="ID Horario de Clase"
                 value={formData.id_class_schedules}
                 onChange={(e) => setFormData({ ...formData, id_class_schedules: e.target.value })}
                 required
               />
               <CFormInput
                 type="text"
-                label="School Year ID"
+                label="ID Año Escolar"
                 value={formData.id_school_year}
                 onChange={(e) => setFormData({ ...formData, id_school_year: e.target.value })}
                 required
               />
               <CFormInput
                 type="text"
-                label="Subject Name"
+                label="Nombre de Asignatura"
                 value={formData.name_subject}
                 onChange={(e) => setFormData({ ...formData, name_subject: e.target.value })}
                 required
               />
               <CFormTextarea
-                label="Description"
+                label="Descripción"
                 value={formData.description_subject}
                 onChange={(e) => setFormData({ ...formData, description_subject: e.target.value })}
                 rows="3"
@@ -212,10 +230,10 @@ const Subjects = () => {
           </CModalBody>
           <CModalFooter>
             <CButton color="success" onClick={handleSaveSubject}>
-              Save
+              Guardar
             </CButton>
             <CButton color="secondary" onClick={handleCloseModal}>
-              Cancel
+              Cancelar
             </CButton>
           </CModalFooter>
         </CModal>

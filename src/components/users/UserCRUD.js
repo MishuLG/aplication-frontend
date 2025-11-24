@@ -19,6 +19,7 @@ import {
   CFormInput,
   CFormSelect,
 } from '@coreui/react';
+import API_URL from '../../../config';  
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -39,7 +40,7 @@ const Users = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [filter, setFilter] = useState({ first_name: '', email: '' });
 
-  const BASE_URL = 'http://localhost:4000/api'; 
+  const usersUrl = `${API_URL}/users`;
 
   useEffect(() => {
     fetchUsers();
@@ -47,37 +48,41 @@ const Users = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${BASE_URL}/users`);
+      const response = await fetch(usersUrl);
       const data = await response.json();
-      setUsers(data);
+      if (Array.isArray(data)) {
+        setUsers(data);
+      } else {
+        console.error('Received data is not an array:', data);
+        alert('Error: Datos recibidos no son válidos.');
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
+      alert('Ocurrió un error al obtener los usuarios. Por favor, inténtelo de nuevo.');
     }
   };
 
   const handleSaveUser = async () => {
     try {
-      const requestOptions = {
-        method: editMode ? 'PUT' : 'POST',
+      const method = editMode ? 'PUT' : 'POST';
+      const url = editMode ? `${usersUrl}/${selectedUser.uid_users}` : usersUrl;
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
-      };
-
-      const url = editMode
-        ? `${BASE_URL}/users/${selectedUser.uid_users}`
-        : `${BASE_URL}/users`;
-
-      const response = await fetch(url, requestOptions);
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to save user');
+        throw new Error('Server response error');
       }
 
-      await fetchUsers();
+      fetchUsers();
       setShowModal(false);
       resetForm();
     } catch (error) {
       console.error('Error saving user:', error);
+      alert('Ocurrió un error al guardar el usuario. Por favor, inténtelo de nuevo.');
     }
   };
 
@@ -101,18 +106,21 @@ const Users = () => {
 
   const handleDeleteUser = async (id) => {
     try {
-      const response = await fetch(`${BASE_URL}/users/${id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`${usersUrl}/${id}`, { method: 'DELETE' });
 
       if (!response.ok) {
-        throw new Error('Failed to delete user');
+        throw new Error('Server response error');
       }
 
-      await fetchUsers();
+      fetchUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
+      alert('Ocurrió un error al eliminar el usuario. Por favor, inténtelo de nuevo.');
     }
+  };
+
+  const handleFilterChange = (e) => {
+    setFilter({ ...filter, [e.target.name]: e.target.value });
   };
 
   const resetForm = () => {
@@ -132,8 +140,9 @@ const Users = () => {
     setSelectedUser(null);
   };
 
-  const handleFilterChange = (e) => {
-    setFilter({ ...filter, [e.target.name]: e.target.value });
+  const handleCloseModal = () => {
+    setShowModal(false);
+    resetForm();
   };
 
   const filteredUsers = users.filter(
@@ -147,22 +156,22 @@ const Users = () => {
   return (
     <CCard>
       <CCardHeader>
-        <h5>Users</h5>
+        <h5>Usuarios</h5>
         <CButton color="success" onClick={() => setShowModal(true)}>
-          Add User
+          Agregar Usuario
         </CButton>
       </CCardHeader>
       <CCardBody>
         <div className="mb-3">
           <CFormInput
-            placeholder="Filter by first name"
+            placeholder="Filtrar por nombre"
             name="first_name"
             value={filter.first_name}
             onChange={handleFilterChange}
             className="mb-2"
           />
           <CFormInput
-            placeholder="Filter by email"
+            placeholder="Filtrar por email"
             name="email"
             value={filter.email}
             onChange={handleFilterChange}
@@ -171,19 +180,19 @@ const Users = () => {
         <CTable bordered hover responsive>
           <CTableHead>
             <CTableRow>
-              <CTableHeaderCell>User ID</CTableHeaderCell>
-              <CTableHeaderCell>Role ID</CTableHeaderCell>
-              <CTableHeaderCell>First Name</CTableHeaderCell>
-              <CTableHeaderCell>Last Name</CTableHeaderCell>
+              <CTableHeaderCell>ID Usuario</CTableHeaderCell>
+              <CTableHeaderCell>ID Rol</CTableHeaderCell>
+              <CTableHeaderCell>Nombre</CTableHeaderCell>
+              <CTableHeaderCell>Apellido</CTableHeaderCell>
               <CTableHeaderCell>DNI</CTableHeaderCell>
-              <CTableHeaderCell>Phone Number</CTableHeaderCell>
+              <CTableHeaderCell>Número de Teléfono</CTableHeaderCell>
               <CTableHeaderCell>Email</CTableHeaderCell>
-              <CTableHeaderCell>Date of Birth</CTableHeaderCell>
-              <CTableHeaderCell>Gender</CTableHeaderCell>
-              <CTableHeaderCell>Status</CTableHeaderCell>
-              <CTableHeaderCell>Created At</CTableHeaderCell>
-              <CTableHeaderCell>Updated At</CTableHeaderCell>
-              <CTableHeaderCell>Actions</CTableHeaderCell>
+              <CTableHeaderCell>Fecha de Nacimiento</CTableHeaderCell>
+              <CTableHeaderCell>Género</CTableHeaderCell>
+              <CTableHeaderCell>Estado</CTableHeaderCell>
+              <CTableHeaderCell>Creado En</CTableHeaderCell>
+              <CTableHeaderCell>Actualizado En</CTableHeaderCell>
+              <CTableHeaderCell>Acciones</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
@@ -207,14 +216,14 @@ const Users = () => {
                     size="sm"
                     onClick={() => handleEditUser(user)}
                   >
-                    Edit
+                    Editar
                   </CButton>{' '}
                   <CButton
                     color="danger"
                     size="sm"
                     onClick={() => handleDeleteUser(user.uid_users)}
                   >
-                    Delete
+                    Eliminar
                   </CButton>
                 </CTableDataCell>
               </CTableRow>
@@ -222,33 +231,33 @@ const Users = () => {
           </CTableBody>
         </CTable>
 
-        <CModal visible={showModal} onClose={() => { setShowModal(false); resetForm(); }}>
+        <CModal visible={showModal} onClose={handleCloseModal}>
           <CModalHeader>
-            <CModalTitle>{editMode ? 'Edit User' : 'Add User'}</CModalTitle>
+            <CModalTitle>{editMode ? 'Editar Usuario' : 'Agregar Usuario'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
             <CForm>
               <CFormSelect
-                label="Role ID"
+                label="ID Rol"
                 value={formData.id_rols}
                 onChange={(e) => setFormData({ ...formData, id_rols: e.target.value })}
                 required
               >
-                <option value="">Select Role</option>
+                <option value="">Seleccionar Rol</option>
                 <option value="1">Admin</option>
-                <option value="2">User</option>
-                <option value="3">Guest</option>
+                <option value="2">Usuario</option>
+                <option value="3">Invitado</option>
               </CFormSelect>
               <CFormInput
                 type="text"
-                label="First Name"
+                label="Nombre"
                 value={formData.first_name}
                 onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                 required
               />
               <CFormInput
                 type="text"
-                label="Last Name"
+                label="Apellido"
                 value={formData.last_name}
                 onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                 required
@@ -262,7 +271,7 @@ const Users = () => {
               />
               <CFormInput
                 type="text"
-                label="Phone Number"
+                label="Número de Teléfono"
                 value={formData.number_tlf}
                 onChange={(e) => setFormData({ ...formData, number_tlf: e.target.value })}
                 required
@@ -276,47 +285,47 @@ const Users = () => {
               />
               <CFormInput
                 type="password"
-                label="Password"
+                label="Contraseña"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
               />
               <CFormInput
                 type="date"
-                label="Date of Birth"
+                label="Fecha de Nacimiento"
                 value={formData.date_of_birth}
                 onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
                 required
               />
               <CFormSelect
-                label="Gender"
+                label="Género"
                 value={formData.gender}
                 onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                 required
               >
-                <option value="">Select Gender</option>
-                <option value="M">M</option>
-                <option value="F">F</option>
+                <option value="">Seleccionar Género</option>
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
               </CFormSelect>
               <CFormSelect
-                label="Status"
+                label="Estado"
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 required
               >
-                <option value="">Select Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="suspended">Suspended</option>
+                <option value="">Seleccionar Estado</option>
+                <option value="active">Activo</option>
+                <option value="inactive">Inactivo</option>
+                <option value="suspended">Suspendido</option>
               </CFormSelect>
             </CForm>
           </CModalBody>
           <CModalFooter>
             <CButton color="success" onClick={handleSaveUser}>
-              Save
+              Guardar
             </CButton>
-            <CButton color="secondary" onClick={() => { setShowModal(false); resetForm(); }}>
-              Cancel
+            <CButton color="secondary" onClick={handleCloseModal}>
+              Cancelar
             </CButton>
           </CModalFooter>
         </CModal>
@@ -326,4 +335,3 @@ const Users = () => {
 };
 
 export default Users;
-
