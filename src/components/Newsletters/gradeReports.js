@@ -20,6 +20,7 @@ import {
   CFormTextarea,
   CFormSelect,
 } from '@coreui/react';
+import API_URL from '../../../config';
 
 const GradeReports = () => {
   const [newsletters, setNewsletters] = useState([]);
@@ -37,8 +38,8 @@ const GradeReports = () => {
   const [selectedNewsletter, setSelectedNewsletter] = useState(null);
   const [filter, setFilter] = useState({ title: '', newsletter_status: '' });
 
-  const API_URL = 'http://localhost:4000/api/newsletters';
-  const USERS_API_URL = 'http://localhost:4000/api/users';
+  const newslettersUrl = `${API_URL}/newsletters`;
+  const usersUrl = `${API_URL}/users`;
 
   useEffect(() => {
     fetchNewsletters();
@@ -47,21 +48,33 @@ const GradeReports = () => {
 
   const fetchNewsletters = async () => {
     try {
-      const response = await fetch(API_URL);
+      const response = await fetch(newslettersUrl);
       const data = await response.json();
-      setNewsletters(data);
+      if (Array.isArray(data)) {
+        setNewsletters(data);
+      } else {
+        console.error('Received data is not an array:', data);
+        alert('Error: Datos recibidos no son válidos.');
+      }
     } catch (error) {
       console.error('Error fetching newsletters:', error);
+      alert('Ocurrió un error al obtener los reportes de calificaciones. Por favor, inténtelo de nuevo.');
     }
   };
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(USERS_API_URL);
+      const response = await fetch(usersUrl);
       const data = await response.json();
-      setUsers(data);
+      if (Array.isArray(data)) {
+        setUsers(data);
+      } else {
+        console.error('Received data is not an array:', data);
+        alert('Error: Datos recibidos no son válidos.');
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
+      alert('Ocurrió un error al obtener los usuarios. Por favor, inténtelo de nuevo.');
     }
   };
 
@@ -73,19 +86,24 @@ const GradeReports = () => {
   const handleSaveNewsletter = async () => {
     try {
       const method = editMode ? 'PUT' : 'POST';
-      const url = editMode ? `${API_URL}/${selectedNewsletter.id_newsletters}` : API_URL;
+      const url = editMode ? `${newslettersUrl}/${selectedNewsletter.id_newsletters}` : newslettersUrl;
 
-      await fetch(url, {
+      const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
 
       fetchNewsletters();
       setShowModal(false);
       resetForm();
     } catch (error) {
       console.error('Error saving newsletter:', error);
+      alert('Ocurrió un error al guardar el reporte de calificaciones. Por favor, inténtelo de nuevo.');
     }
   };
 
@@ -105,10 +123,16 @@ const GradeReports = () => {
 
   const handleDeleteNewsletter = async (id) => {
     try {
-      await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${newslettersUrl}/${id}`, { method: 'DELETE' });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
+
       fetchNewsletters();
     } catch (error) {
       console.error('Error deleting newsletter:', error);
+      alert('Ocurrió un error al eliminar el reporte de calificaciones. Por favor, inténtelo de nuevo.');
     }
   };
 
@@ -143,42 +167,42 @@ const GradeReports = () => {
   return (
     <CCard>
       <CCardHeader>
-        <h5>Grade Reports</h5>
+        <h5>Reportes de Calificaciones</h5>
         <CButton color="success" onClick={() => setShowModal(true)}>
-          Add Newsletter
+          Agregar Reporte
         </CButton>
       </CCardHeader>
       <CCardBody>
         <div className="mb-3">
           <CFormInput
-            placeholder="Filter by title"
+            placeholder="Filtrar por título"
             name="title"
             value={filter.title}
             onChange={handleFilterChange}
             className="mb-2"
           />
           <CFormSelect
-            placeholder="Filter by status"
+            placeholder="Filtrar por estado"
             name="newsletter_status"
             value={filter.newsletter_status}
             onChange={handleFilterChange}
           >
-            <option value="">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="">Todos los estados</option>
+            <option value="active">Activo</option>
+            <option value="inactive">Inactivo</option>
           </CFormSelect>
         </div>
         <CTable bordered hover responsive>
           <CTableHead>
             <CTableRow>
-              <CTableHeaderCell>ID Newsletter</CTableHeaderCell>
-              <CTableHeaderCell>User ID</CTableHeaderCell>
-              <CTableHeaderCell>Title</CTableHeaderCell>
-              <CTableHeaderCell>Content</CTableHeaderCell>
-              <CTableHeaderCell>Date Sent</CTableHeaderCell>
-              <CTableHeaderCell>Status</CTableHeaderCell>
-              <CTableHeaderCell>Recipients</CTableHeaderCell>
-              <CTableHeaderCell>Actions</CTableHeaderCell>
+              <CTableHeaderCell>ID Reporte</CTableHeaderCell>
+              <CTableHeaderCell>ID Usuario</CTableHeaderCell>
+              <CTableHeaderCell>Título</CTableHeaderCell>
+              <CTableHeaderCell>Contenido</CTableHeaderCell>
+              <CTableHeaderCell>Fecha de Envío</CTableHeaderCell>
+              <CTableHeaderCell>Estado</CTableHeaderCell>
+              <CTableHeaderCell>Destinatarios</CTableHeaderCell>
+              <CTableHeaderCell>Acciones</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
@@ -197,14 +221,14 @@ const GradeReports = () => {
                     size="sm"
                     onClick={() => handleEditNewsletter(newsletter)}
                   >
-                    Edit
+                    Editar
                   </CButton>{' '}
                   <CButton
                     color="danger"
                     size="sm"
                     onClick={() => handleDeleteNewsletter(newsletter.id_newsletters)}
                   >
-                    Delete
+                    Eliminar
                   </CButton>
                 </CTableDataCell>
               </CTableRow>
@@ -214,17 +238,17 @@ const GradeReports = () => {
 
         <CModal visible={showModal} onClose={handleCloseModal}>
           <CModalHeader>
-            <CModalTitle>{editMode ? 'Edit Newsletter' : 'Add Newsletter'}</CModalTitle>
+            <CModalTitle>{editMode ? 'Editar Reporte' : 'Agregar Reporte'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
             <CForm>
               <CFormSelect
-                label="User ID"
+                label="ID Usuario"
                 value={formData.uid_users}
                 onChange={(e) => setFormData({ ...formData, uid_users: e.target.value })}
                 required
               >
-                <option value="">Select User</option>
+                <option value="">Seleccionar Usuario</option>
                 {getAvailableUsers().map((user) => (
                   <option key={user.uid_users} value={user.uid_users}>
                     {user.first_name} {user.last_name} ({user.uid_users})
@@ -233,13 +257,13 @@ const GradeReports = () => {
               </CFormSelect>
               <CFormInput
                 type="text"
-                label="Title"
+                label="Título"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 required
               />
               <CFormTextarea
-                label="Content"
+                label="Contenido"
                 value={formData.content}
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                 rows="3"
@@ -249,10 +273,10 @@ const GradeReports = () => {
           </CModalBody>
           <CModalFooter>
             <CButton color="success" onClick={handleSaveNewsletter}>
-              Save
+              Guardar
             </CButton>
             <CButton color="secondary" onClick={handleCloseModal}>
-              Cancel
+              Cancelar
             </CButton>
           </CModalFooter>
         </CModal>

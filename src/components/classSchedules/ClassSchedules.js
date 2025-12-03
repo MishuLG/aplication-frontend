@@ -20,6 +20,7 @@ import {
   CFormTextarea,
   CFormSelect,
 } from '@coreui/react';
+import API_URL from '../../../config';
 
 const ClassSchedules = () => {
   const [classSchedules, setClassSchedules] = useState([]);
@@ -37,7 +38,7 @@ const ClassSchedules = () => {
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [filter, setFilter] = useState({ day_of_week: '', classroom: '' });
 
-  const API_URL = 'http://localhost:4000/api/class_schedules';
+  const classSchedulesUrl = `${API_URL}/class_schedules`;
 
   useEffect(() => {
     fetchClassSchedules();
@@ -45,37 +46,38 @@ const ClassSchedules = () => {
 
   const fetchClassSchedules = async () => {
     try {
-      const response = await fetch(API_URL);
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
+      const response = await fetch(classSchedulesUrl);
       const data = await response.json();
-      const formattedData = data.map(schedule => ({
-        ...schedule,
-        day_of_week: schedule.day_of_week || '',
-        classroom: schedule.classroom || '',
-      }));
-      setClassSchedules(formattedData);
+      if (Array.isArray(data)) {
+        const formattedData = data.map(schedule => ({
+          ...schedule,
+          day_of_week: schedule.day_of_week || '',
+          classroom: schedule.classroom || '',
+        }));
+        setClassSchedules(formattedData);
+      } else {
+        console.error('Received data is not an array:', data);
+        alert('Error: Datos recibidos no son válidos.');
+      }
     } catch (error) {
       console.error('Error fetching class schedules:', error);
+      alert('Ocurrió un error al obtener los horarios de clase. Por favor, inténtelo de nuevo.');
     }
   };
 
   const handleSaveSchedule = async () => {
     try {
       const method = editMode ? 'PUT' : 'POST';
-      const url = editMode ? `${API_URL}/${selectedSchedule.id_class_schedules}` : API_URL;
+      const url = editMode ? `${classSchedulesUrl}/${selectedSchedule.id_class_schedules}` : classSchedulesUrl;
 
       const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        method,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error('Error en la respuesta del servidor');
       }
 
       fetchClassSchedules();
@@ -83,6 +85,7 @@ const ClassSchedules = () => {
       resetForm();
     } catch (error) {
       console.error('Error saving schedule:', error);
+      alert('Ocurrió un error al guardar el horario. Por favor, inténtelo de nuevo.');
     }
   };
 
@@ -103,17 +106,16 @@ const ClassSchedules = () => {
 
   const handleDeleteSchedule = async (id) => {
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`${classSchedulesUrl}/${id}`, { method: 'DELETE' });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error('Error en la respuesta del servidor');
       }
 
       fetchClassSchedules();
     } catch (error) {
       console.error('Error deleting schedule:', error);
+      alert('Ocurrió un error al eliminar el horario. Por favor, inténtelo de nuevo.');
     }
   };
 
@@ -149,22 +151,22 @@ const ClassSchedules = () => {
   return (
     <CCard>
       <CCardHeader>
-        <h5>Class Schedules</h5>
+        <h5>Horarios de Clase</h5>
         <CButton color="success" onClick={() => setShowModal(true)}>
-          Add Schedule
+          Agregar Horario
         </CButton>
       </CCardHeader>
       <CCardBody>
         <div className="mb-3">
           <CFormInput
-            placeholder="Filter by day of week"
+            placeholder="Filtrar por día de la semana"
             name="day_of_week"
             value={filter.day_of_week}
             onChange={handleFilterChange}
             className="mb-2"
           />
           <CFormInput
-            placeholder="Filter by classroom"
+            placeholder="Filtrar por aula"
             name="classroom"
             value={filter.classroom}
             onChange={handleFilterChange}
@@ -174,16 +176,16 @@ const ClassSchedules = () => {
           <CTableHead>
             <CTableRow>
               <CTableHeaderCell>ID</CTableHeaderCell>
-              <CTableHeaderCell>Start Date</CTableHeaderCell>
-              <CTableHeaderCell>End Date</CTableHeaderCell>
-              <CTableHeaderCell>Classroom</CTableHeaderCell>
-              <CTableHeaderCell>Start Time</CTableHeaderCell>
-              <CTableHeaderCell>End Time</CTableHeaderCell>
-              <CTableHeaderCell>Unforeseen Events</CTableHeaderCell>
-              <CTableHeaderCell>Day of Week</CTableHeaderCell>
-              <CTableHeaderCell>Created At</CTableHeaderCell>
-              <CTableHeaderCell>Updated At</CTableHeaderCell>
-              <CTableHeaderCell>Actions</CTableHeaderCell>
+              <CTableHeaderCell>Fecha de Inicio</CTableHeaderCell>
+              <CTableHeaderCell>Fecha de Fin</CTableHeaderCell>
+              <CTableHeaderCell>Aula</CTableHeaderCell>
+              <CTableHeaderCell>Hora de Inicio</CTableHeaderCell>
+              <CTableHeaderCell>Hora de Fin</CTableHeaderCell>
+              <CTableHeaderCell>Eventos Imprevistos</CTableHeaderCell>
+              <CTableHeaderCell>Día de la Semana</CTableHeaderCell>
+              <CTableHeaderCell>Creado En</CTableHeaderCell>
+              <CTableHeaderCell>Actualizado En</CTableHeaderCell>
+              <CTableHeaderCell>Acciones</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
@@ -205,14 +207,14 @@ const ClassSchedules = () => {
                     size="sm"
                     onClick={() => handleEditSchedule(schedule)}
                   >
-                    Edit
+                    Editar
                   </CButton>{' '}
                   <CButton
                     color="danger"
                     size="sm"
                     onClick={() => handleDeleteSchedule(schedule.id_class_schedules)}
                   >
-                    Delete
+                    Eliminar
                   </CButton>
                 </CTableDataCell>
               </CTableRow>
@@ -222,74 +224,74 @@ const ClassSchedules = () => {
 
         <CModal visible={showModal} onClose={handleCloseModal}>
           <CModalHeader>
-            <CModalTitle>{editMode ? 'Edit Schedule' : 'Add Schedule'}</CModalTitle>
+            <CModalTitle>{editMode ? 'Editar Horario' : 'Agregar Horario'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
             <CForm>
               <CFormInput
                 type="date"
-                label="Start Date"
+                label="Fecha de Inicio"
                 value={formData.start_date}
                 onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                 required
               />
               <CFormInput
                 type="date"
-                label="End Date"
+                label="Fecha de Fin"
                 value={formData.end_date}
                 onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                 required
               />
               <CFormInput
                 type="text"
-                label="Classroom"
+                label="Aula"
                 value={formData.classroom}
                 onChange={(e) => setFormData({ ...formData, classroom: e.target.value })}
                 required
               />
               <CFormInput
                 type="time"
-                label="Start Time"
+                label="Hora de Inicio"
                 value={formData.start_time}
                 onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                 required
               />
               <CFormInput
                 type="time"
-                label="End Time"
+                label="Hora de Fin"
                 value={formData.end_time}
                 onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                 required
               />
               <CFormTextarea
-                label="Unforeseen Events"
+                label="Eventos Imprevistos"
                 value={formData.unforeseen_events}
                 onChange={(e) => setFormData({ ...formData, unforeseen_events: e.target.value })}
                 rows="3"
               />
               <CFormSelect
-                label="Day of Week"
+                label="Día de la Semana"
                 value={formData.day_of_week}
                 onChange={(e) => setFormData({ ...formData, day_of_week: e.target.value })}
                 required
               >
-                <option value="">Select Day</option>
-                <option value="Lunes">Monday</option>
-                <option value="Martes">Tuesday</option>
-                <option value="Miercoles">Wednesday</option>
-                <option value="Jueves">Thursday</option>
-                <option value="Viernes">Friday</option>
-                <option value="Sabado">Saturday</option>
-                <option value="Domingo">Sunday</option>
+                <option value="">Seleccionar Día</option>
+                <option value="Lunes">Lunes</option>
+                <option value="Martes">Martes</option>
+                <option value="Miércoles">Miércoles</option>
+                <option value="Jueves">Jueves</option>
+                <option value="Viernes">Viernes</option>
+                <option value="Sábado">Sábado</option>
+                <option value="Domingo">Domingo</option>
               </CFormSelect>
             </CForm>
           </CModalBody>
           <CModalFooter>
             <CButton color="success" onClick={handleSaveSchedule}>
-              Save
+              Guardar
             </CButton>
             <CButton color="secondary" onClick={handleCloseModal}>
-              Cancel
+              Cancelar
             </CButton>
           </CModalFooter>
         </CModal>

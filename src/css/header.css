@@ -1,44 +1,43 @@
-/* Contenedor del header */
 .header-container {
-    border-bottom: 4px solid #1a67cca6; /* Definimos un borde sólido en lugar de solo "4px" */
-    background-color: #1a67cca6;
-    text-decoration: none;
+    background-image: linear-gradient(
+        -45deg,
+        rgba(50, 31, 219, 0.4),     
+        rgba(111, 66, 193, 0.4),    
+        rgba(13, 202, 240, 0.4),    
+        rgba(0, 0, 21, 0.9)         
+    );
+
+    background-size: 400% 400%; 
+    
+    animation: auroraFade 20s ease infinite;
+
+    background-color: transparent !important; 
+    border-bottom: none !important; 
 }
 
-/* Estilo para el dropdown de perfil */
-.header-profile {
-    padding-top: 0px;
-    background-color: #1a67cca6;
-    font-weight: bold; /* Corregido de "font-weight: bold, 2mb;" */
-    text-decoration: none;
-    color: white;
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1); /* Agregado un valor de sombra más claro */
+.header {
+    background-color: transparent !important;
+    box-shadow: none !important; 
 }
 
-/* Breadcrumb */
-.header-breadcrumb {
-    background-color: #1a67cca6;
-}
-
-/* Estilos para la barra de desplazamiento */
 .simplebar {
     background-color: #11233b;
-    border-right: 1px solid #ccc; /* Agregué un borde derecho si es necesario */
+    border-right: 1px solid #ccc; 
 }
 
-/* Alineación específica para el icono */
+
 .d-flex.align-items-center {
     display: flex;
     align-items: center;
-    justify-content: center; /* Asegura que los iconos y elementos dentro se centren */
+    justify-content: center; 
 }
 
 .nav-item {
     display: flex;
-    align-items: center; /* Alineación de todos los elementos dentro de los items de navegación */
+    align-items: center; 
 }
 
-/* Evitar que los iconos se desplacen hacia arriba */
+
 .nav-item .vr {
-    height: 100%; /* Asegura que la línea vertical tenga una altura consistente */
+    height: 100%; 
 }

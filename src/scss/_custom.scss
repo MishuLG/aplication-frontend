@@ -1,1 +1,197 @@
-// Here you can add other styles
+.table-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+
+// para el fondo en modo oscuro
+@keyframes subtleGradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; } 
+    100% { background-position: 0% 50%; }
+}
+
+@if $enable-dark-mode {
+    @include color-mode(dark) {
+        
+        .card,
+        .card-body {
+            background-color: rgba(0, 0, 0, 0.6) !important; 
+            border: none; 
+        }
+
+        .table,
+        .table-striped > tbody > tr:nth-of-type(odd) > * {
+             --cui-table-bg: rgba(0, 0, 0, 0.3) !important;
+             --cui-table-accent-bg: rgba(255, 255, 255, 0.05) !important;
+             --cui-table-striped-bg: rgba(255, 255, 255, 0.03) !important;
+             border-color: rgba(255, 255, 255, 0.1); 
+        }
+    }
+}
+
+@if $enable-dark-mode {
+    @include color-mode(dark) {
+        
+        body {
+            background: linear-gradient(
+                -45deg, 
+                var(--cui-black), 
+                var(--cui-gray-900), 
+                var(--cui-dark-bg-subtle, #1a67cc86), 
+                var(--cui-gray-800)
+            );
+            
+            background-size: 400% 400%; 
+            
+            animation: subtleGradient 20s ease infinite; 
+        }
+        
+        .card, .table {
+            background-color: var(--cui-body-bg); 
+        }
+    }
+}
+
+// efecto auroraboreal
+@keyframes auroraFade {
+
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+//mismo efecto al appsidebar
+.simplebar-content {
+    background-color: transparent !important; 
+    
+    background-image: linear-gradient(
+        -45deg,
+        rgba(50, 31, 219, 0.4),     // Basado en --cui-primary [7]
+        rgba(111, 66, 193, 0.4),    // Basado en --cui-purple [7]
+        rgba(13, 202, 240, 0.4),    // Basado en --cui-cyan (color de aurora) [7]
+        rgba(0, 0, 21, 0.9)         // Basado en --cui-black (base oscura) [7]
+    );
+
+    background-size: 400% 400%; 
+    animation: auroraFade 20s ease infinite; 
+}
+
+.simplebar { 
+    background-color: transparent !important; 
+    border-right: none !important; 
+}
+
+.sidebar {
+    background-color: transparent !important;
+}
+
+
+
+//estilos para la barra de navegacion
+.sidebar-nav .nav-item {
+    margin-bottom: 0.5rem; 
+}
+
+.sidebar-nav .nav-link {
+    padding-top: 0.65rem !important;
+    padding-bottom: 0.65rem !important;
+    font-size: 0.95rem; 
+    font-weight: 600 !important; 
+    color: var(--cui-white, #ffffff) !important; 
+    opacity: 1 !important;
+    color: var(--cui-dark, #212529) !important; 
+    opacity: 0.8; 
+    transition: all 0.3s ease-in-out !important; 
+}
+
+.sidebar-nav .nav-link:hover,
+.sidebar-nav .nav-link:focus,
+.sidebar-nav .nav-link.active,
+.sidebar-nav .nav-group-toggle:hover, 
+.sidebar-nav .nav-group-toggle:focus,
+.sidebar-nav .nav-group-toggle.active { 
+
+    background-color: transparent !important; 
+    background-image: none !important; 
+
+    backdrop-filter: blur(5px);
+
+    transform: scale(1.02);
+
+    box-shadow: inset 0 0 5px rgba(var(--cui-white-rgb, 255, 255, 255), 0.2);
+    border-radius: var(--cui-border-radius-sm, 0.25rem);
+
+    opacity: 1 !important; 
+    color: var(--cui-white) !important; 
+}
+
+.sidebar-nav .nav-link.active {
+    color: var(--cui-cyan, #0dcaf0) !important; 
+    font-weight: 700 !important; 
+    opacity: 1 !important;
+    background-color: transparent !important; 
+    transform: scale(1.02); 
+    backdrop-filter: blur(5px); 
+    box-shadow: inset 0 0 5px rgba(var(--cui-dark-rgb, 33, 37, 41), 0.3) !important; 
+    border-left-color: var(--cui-primary, #321fdb) !important;
+    
+    border-left: 3px solid var(--cui-cyan, #0dcaf0) !important;
+    
+    background-color: transparent !important;  
+}
+
+
+.sidebar-nav .nav-title {
+    padding-top: 1.5rem !important;
+    padding-bottom: 0.5rem !important;
+    color: var(--cui-gray-600, #6f7782) !important; 
+    color: var(--cui-gray-400); 
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+}
+
+.sidebar-nav .nav-icon {
+    color: var(--cui-cyan, #0dcaf0) !important; 
+    
+    font-size: 1.25rem !important; 
+    
+    display: inline-flex;
+    align-items: center;
+}
+
+
+
+//efectos al footer de la barra de navegacion
+.sidebar-footer { 
+    background-color: transparent !important;
+    background-image: none !important; 
+    
+    border-top: none !important; 
+
+    background-image: linear-gradient(
+        -45deg,
+        rgba(50, 31, 219, 0.4),     
+        rgba(111, 66, 193, 0.4),    
+        rgba(13, 202, 240, 0.4),    
+        rgba(0, 0, 21, 0.9)         
+    );
+
+    background-size: 400% 400%; 
+    animation: auroraFade 20s ease infinite; 
+}
+
+.sidebar-footer .sidebar-toggler,
+.sidebar-footer .c-sidebar-toggler {
+    color: var(--cui-cyan, #0dcaf0) !important; 
+    transition: all 0.3s ease-in-out; 
+}
+
+.sidebar-footer .sidebar-toggler:hover {
+    background-color: rgba(var(--cui-white-rgb, 255, 255, 255), 0.1) !important;
+    transform: scale(1.05); 
+}
