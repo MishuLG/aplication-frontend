@@ -22,10 +22,14 @@ import {
   CFormSelect,
   CAlert,
 } from '@coreui/react';
+<<<<<<< HEAD
 import CIcon from '@coreui/icons-react';
 import { cilPencil, cilTrash, cilPlus } from '@coreui/icons';
 
 const API_URL = 'http://localhost:4000/api';
+=======
+import API_URL from '../../../config';  
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
 
 const SubjectsTaken = () => {
   const [subjectsTaken, setSubjectsTaken] = useState([]);
@@ -44,6 +48,7 @@ const SubjectsTaken = () => {
   const [selectedSubjectTaken, setSelectedSubjectTaken] = useState(null);
   const [filter, setFilter] = useState({ id_student: '', id_school_year: '' });
 
+<<<<<<< HEAD
   const [errors, setErrors] = useState({});
   const [alertBox, setAlertBox] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -56,6 +61,9 @@ const SubjectsTaken = () => {
   const studentsUrl = `${API_URL}/students`;
   const subjectsUrl = `${API_URL}/subjects`;
   const schoolYearsUrl = `${API_URL}/school_years`;
+=======
+  const subjectsTakenUrl = `${API_URL}/subjects_taken`;
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
 
   useEffect(() => {
     fetchSubjectsTaken();
@@ -65,33 +73,62 @@ const SubjectsTaken = () => {
   const fetchSubjectsTaken = async () => {
     try {
       const response = await fetch(subjectsTakenUrl);
+<<<<<<< HEAD
       if (!response.ok) throw new Error('Error de red');
+=======
+      if (!response.ok) {
+        throw new Error('Error de respuesta de la red');
+      }
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
       const data = await response.json();
       setSubjectsTaken(Array.isArray(data) ? data : []);
     } catch (error) {
+<<<<<<< HEAD
       console.error('fetchSubjectsTaken error', error);
       setAlertBox('Error al obtener asignaturas tomadas');
+=======
+      console.error('Error al obtener las asignaturas tomadas:', error);
+      alert('Ocurrió un error al obtener las asignaturas tomadas. Por favor, inténtelo de nuevo.');
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
     }
   };
 
   const fetchDependencies = async () => {
     try {
+<<<<<<< HEAD
       const [studentsRes, subjectsRes, yearsRes] = await Promise.all([
         fetch(studentsUrl),
         fetch(subjectsUrl),
         fetch(schoolYearsUrl),
       ]);
+=======
+      const url = editMode ? `${subjectsTakenUrl}/${selectedSubjectTaken.id_subject_taken}` : subjectsTakenUrl;
+      const method = editMode ? 'PUT' : 'POST';
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
 
       const studentsData = studentsRes.ok ? await studentsRes.json() : [];
       const subjectsData = subjectsRes.ok ? await subjectsRes.json() : [];
       const yearsData = yearsRes.ok ? await yearsRes.json() : [];
 
+<<<<<<< HEAD
       setStudents(Array.isArray(studentsData) ? studentsData : []);
       setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
       setSchoolYears(Array.isArray(yearsData) ? yearsData : []);
     } catch (error) {
       console.error('fetchDependencies error', error);
       setAlertBox('Error al cargar dependencias (estudiantes, asignaturas o años)');
+=======
+      if (!response.ok) {
+        throw new Error('Error de respuesta de la red');
+      }
+
+      fetchSubjectsTaken();
+      setShowModal(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error al guardar la asignatura tomada:', error);
+      alert('Ocurrió un error al guardar la asignatura tomada. Por favor, inténtelo de nuevo.');
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
     }
   };
 
@@ -133,6 +170,7 @@ const SubjectsTaken = () => {
     if (!idToDelete) return;
     setIsDeleting(true);
     try {
+<<<<<<< HEAD
       const res = await fetch(`${subjectsTakenUrl}/${idToDelete}`, { method: 'DELETE' });
       if (!res.ok) {
         let txt = `Error ${res.status}`;
@@ -157,6 +195,20 @@ const SubjectsTaken = () => {
       setAlertBox(err.message || 'Error al eliminar registro');
     } finally {
       setIsDeleting(false);
+=======
+      const response = await fetch(`${subjectsTakenUrl}/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Error de respuesta de la red');
+      }
+
+      fetchSubjectsTaken();
+    } catch (error) {
+      console.error('Error al eliminar la asignatura tomada:', error);
+      alert('Ocurrió un error al eliminar la asignatura tomada. Por favor, inténtelo de nuevo.');
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
     }
   };
 
@@ -369,6 +421,7 @@ const SubjectsTaken = () => {
   };
 
   return (
+<<<<<<< HEAD
     <CRow>
       <CCol xs={12}>
         <CCard className="mb-4">
@@ -549,14 +602,126 @@ const SubjectsTaken = () => {
             {errors.final_grade && (
               <div style={{ color: 'red', marginTop: 6, fontSize: 13 }}>{errors.final_grade}</div>
             )}
+=======
+    <CCard>
+      <CCardHeader>
+        <h5>Asignaturas Tomadas</h5>
+        <CButton color="success" onClick={() => setShowModal(true)}>
+          Agregar Asignatura Tomada
+        </CButton>
+      </CCardHeader>
+      <CCardBody>
+        <div className="mb-3">
+          <CFormInput
+            placeholder="Filtrar por ID de estudiante"
+            name="id_student"
+            value={filter.id_student}
+            onChange={handleFilterChange}
+            className="mb-2"
+          />
+          <CFormInput
+            placeholder="Filtrar por ID de año escolar"
+            name="id_school_year"
+            value={filter.id_school_year}
+            onChange={handleFilterChange}
+          />
+        </div>
+        <CTable bordered hover responsive>
+          <CTableHead>
+            <CTableRow>
+              <CTableHeaderCell>ID Asignatura Tomada</CTableHeaderCell>
+              <CTableHeaderCell>ID Estudiante</CTableHeaderCell>
+              <CTableHeaderCell>ID Asignatura</CTableHeaderCell>
+              <CTableHeaderCell>ID Año Escolar</CTableHeaderCell>
+              <CTableHeaderCell>Calificación Final</CTableHeaderCell>
+              <CTableHeaderCell>Creado En</CTableHeaderCell>
+              <CTableHeaderCell>Actualizado En</CTableHeaderCell>
+              <CTableHeaderCell>Acciones</CTableHeaderCell>
+            </CTableRow>
+          </CTableHead>
+          <CTableBody>
+            {filteredSubjectsTaken.map((subjectTaken) => (
+              <CTableRow key={subjectTaken.id_subject_taken}>
+                <CTableDataCell>{subjectTaken.id_subject_taken}</CTableDataCell>
+                <CTableDataCell>{subjectTaken.id_student}</CTableDataCell>
+                <CTableDataCell>{subjectTaken.id_subject}</CTableDataCell>
+                <CTableDataCell>{subjectTaken.id_school_year}</CTableDataCell>
+                <CTableDataCell>{subjectTaken.final_grade}</CTableDataCell>
+                <CTableDataCell>{subjectTaken.created_at}</CTableDataCell>
+                <CTableDataCell>{subjectTaken.updated_at}</CTableDataCell>
+                <CTableDataCell>
+                  {/*<CButton
+                    color="warning"
+                    size="sm"
+                    onClick={() => handleEditSubjectTaken(subjectTaken)}
+                  >
+                     Editar 
+                  </CButton>{' '}*/}
+                  <CButton
+                    color="danger"
+                    size="sm"
+                    onClick={() => handleDeleteSubjectTaken(subjectTaken.id_subject_taken)}
+                  >
+                    Eliminar
+                  </CButton>
+                </CTableDataCell>
+              </CTableRow>
+            ))}
+          </CTableBody>
+        </CTable>
+
+        <CModal visible={showModal} onClose={handleCloseModal}>
+          <CModalHeader>
+            <CModalTitle>{editMode ? 'Editar Asignatura Tomada' : 'Agregar Asignatura Tomada'}</CModalTitle>
+          </CModalHeader>
+          <CModalBody>
+            <CForm>
+              <CFormInput
+                type="text"
+                label="ID Estudiante"
+                value={formData.id_student}
+                onChange={(e) => setFormData({ ...formData, id_student: e.target.value })}
+                required
+              />
+              <CFormInput
+                type="text"
+                label="ID Asignatura"
+                value={formData.id_subject}
+                onChange={(e) => setFormData({ ...formData, id_subject: e.target.value })}
+                required
+              />
+              <CFormInput
+                type="text"
+                label="ID Año Escolar"
+                value={formData.id_school_year}
+                onChange={(e) => setFormData({ ...formData, id_school_year: e.target.value })}
+                required
+              />
+              <CFormInput
+                type="number"
+                label="Calificación Final"
+                value={formData.final_grade}
+                onChange={(e) => setFormData({ ...formData, final_grade: e.target.value })}
+                required
+              />
+            </CForm>
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
           </CModalBody>
 
           <CModalFooter>
+<<<<<<< HEAD
             <CButton color="secondary" onClick={() => setShowModal(false)} disabled={isSaving}>
               Cerrar
             </CButton>
             <CButton color="primary" type="submit" disabled={isSaving}>
               {isSaving ? 'Guardando...' : 'Guardar cambios'}
+=======
+            <CButton color="success" onClick={handleSaveSubjectTaken}>
+              Guardar
+            </CButton>
+            <CButton color="secondary" onClick={handleCloseModal}>
+              Cancelar
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
             </CButton>
           </CModalFooter>
         </CForm>

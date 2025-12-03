@@ -21,7 +21,11 @@ import {
   CRow,
   CCol,
 } from '@coreui/react';
+<<<<<<< HEAD
 import API_URL from '../../../config';
+=======
+import API_URL from '../../../config';  
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
 
 const Sections = () => {
   const [sections, setSections] = useState([]);
@@ -37,11 +41,14 @@ const Sections = () => {
   const [alertBox, setAlertBox] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
+<<<<<<< HEAD
   // delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [idToDelete, setIdToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+=======
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
   const sectionsUrl = `${API_URL}/sections`;
 
   useEffect(() => {
@@ -50,6 +57,7 @@ const Sections = () => {
 
   const fetchSections = async () => {
     try {
+<<<<<<< HEAD
       const res = await fetch(sectionsUrl);
       const data = await res.json();
       if (Array.isArray(data)) {
@@ -61,12 +69,26 @@ const Sections = () => {
     } catch (err) {
       console.error('fetchSections error', err);
       setAlertBox('Error al obtener secciones');
+=======
+      const response = await fetch(sectionsUrl);
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setSections(data);
+      } else {
+        console.error('Received data is not an array:', data);
+        alert('Error: Invalid data received.');
+      }
+    } catch (error) {
+      console.error('Error fetching sections:', error);
+      alert('An error occurred while fetching sections. Please try again.');
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
     }
   };
 
   const parsePostgresUniqueError = (err) => {
     const result = { field: 'registro', value: null, message: 'Valor duplicado' };
     try {
+<<<<<<< HEAD
       if (!err) return result;
       if (typeof err.detail === 'string') {
         const m = err.detail.match(/\(([^)]+)\)=\(([^)]+)\)/);
@@ -88,6 +110,52 @@ const Sections = () => {
       if (err.message) result.message = err.message;
     } catch (e) {
       // ignore parse problems
+=======
+      const method = editMode ? 'PUT' : 'POST';
+      const url = editMode ? `${sectionsUrl}/${selectedSection.id_section}` : sectionsUrl;
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
+
+      fetchSections();
+      setShowModal(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error saving section:', error);
+      alert('An error occurred while saving the section. Please try again.');
+    }
+  };
+
+  const handleEditSection = (section) => {
+    setSelectedSection(section);
+    setFormData({
+      id_class_schedules: section.id_class_schedules,
+      num_section: section.num_section,
+    });
+    setEditMode(true);
+    setShowModal(true);
+  };
+
+  const handleDeleteSection = async (id) => {
+    try {
+      const response = await fetch(`${sectionsUrl}/${id}`, { method: 'DELETE' });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
+
+      fetchSections();
+    } catch (error) {
+      console.error('Error deleting section:', error);
+      alert('An error occurred while deleting the section. Please try again.');
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
     }
     return result;
   };
@@ -121,6 +189,7 @@ const Sections = () => {
     resetForm();
   };
 
+<<<<<<< HEAD
   const handleEditSection = (section) => {
     setSelectedSection(section);
     setFormData({
@@ -312,6 +381,26 @@ const Sections = () => {
       <CCardHeader className="d-flex justify-content-between align-items-center">
         <h5 style={{ margin: 0 }}>Secciones</h5>
         <CButton color="success" onClick={openAddModal}>
+=======
+  const filteredSections = sections.filter(
+  (section) => {
+    const classScheduleId = section.id_class_schedules ? section.id_class_schedules.toString() : '';
+    const sectionNumber = section.num_section ? section.num_section.toString() : '';
+
+    return (
+      classScheduleId.includes(filter.id_class_schedules) &&
+      sectionNumber.includes(filter.num_section)
+    );
+  }
+);
+
+
+  return (
+    <CCard>
+      <CCardHeader>
+        <h5>Secciones</h5>
+        <CButton color="success" onClick={() => setShowModal(true)}>
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
           Agregar Sección
         </CButton>
       </CCardHeader>
@@ -325,14 +414,22 @@ const Sections = () => {
 
         <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
           <CFormInput
+<<<<<<< HEAD
             placeholder="Filtrar por ID Horario"
+=======
+            placeholder="Filtrar por ID de horario de clase"
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
             name="id_class_schedules"
             value={filter.id_class_schedules}
             onChange={handleFilterChange}
             style={{ maxWidth: 200 }}
           />
           <CFormInput
+<<<<<<< HEAD
             placeholder="Filtrar por Número de Sección"
+=======
+            placeholder="Filtrar por número de sección"
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
             name="num_section"
             value={filter.num_section}
             onChange={handleFilterChange}
@@ -363,10 +460,17 @@ const Sections = () => {
                 <CTableDataCell>{section.created_at}</CTableDataCell>
                 <CTableDataCell>{section.updated_at}</CTableDataCell>
                 <CTableDataCell>
+<<<<<<< HEAD
                   <CButton color="warning" size="sm" onClick={() => handleEditSection(section)} style={{ marginRight: 8 }}>
                     Editar
                   </CButton>
                   <CButton color="danger" size="sm" onClick={() => handleDeleteClick(section.id_section)}>
+=======
+                  <CButton color="warning" size="sm" onClick={() => handleEditSection(section)}>
+                    Editar
+                  </CButton>{' '}
+                  <CButton color="danger" size="sm" onClick={() => handleDeleteSection(section.id_section)}>
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
                     Eliminar
                   </CButton>
                 </CTableDataCell>
@@ -387,6 +491,7 @@ const Sections = () => {
             )}
 
             <CForm>
+<<<<<<< HEAD
               <CRow className="mb-2">
                 <CCol xs={12}>
                   <CFormInput
@@ -424,10 +529,27 @@ const Sections = () => {
                   )}
                 </CCol>
               </CRow>
+=======
+              <CFormInput
+                type="text"
+                label="ID Horario de Clase"
+                value={formData.id_class_schedules}
+                onChange={(e) => setFormData({ ...formData, id_class_schedules: e.target.value })}
+                required
+              />
+              <CFormInput
+                type="text"
+                label="Número de Sección"
+                value={formData.num_section}
+                onChange={(e) => setFormData({ ...formData, num_section: e.target.value })}
+                required
+              />
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
             </CForm>
           </CModalBody>
 
           <CModalFooter>
+<<<<<<< HEAD
             <CButton color="success" onClick={handleSaveSection} disabled={isSaving}>
               {isSaving ? 'Guardando...' : 'Guardar'}
             </CButton>
@@ -448,6 +570,12 @@ const Sections = () => {
               {isDeleting ? 'Eliminando...' : 'Eliminar'}
             </CButton>
             <CButton color="secondary" onClick={handleCancelDelete} disabled={isDeleting}>
+=======
+            <CButton color="success" onClick={handleSaveSection}>
+              Guardar
+            </CButton>
+            <CButton color="secondary" onClick={handleCloseModal}>
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
               Cancelar
             </CButton>
           </CModalFooter>

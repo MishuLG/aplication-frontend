@@ -19,7 +19,11 @@ import {
   CFormSelect,
   CAlert,
 } from '@coreui/react';
+<<<<<<< HEAD
 import API_URL from '../../../config';
+=======
+import API_URL from '../../../config';  
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
 
 const Tutors = () => {
   const [tutors, setTutors] = useState([]);
@@ -33,11 +37,14 @@ const Tutors = () => {
   const [alertBox, setAlertBox] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
+<<<<<<< HEAD
   // delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [idToDelete, setIdToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+=======
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
   const tutorsUrl = `${API_URL}/tutors`;
   const usersUrl = `${API_URL}/users`;
 
@@ -53,11 +60,20 @@ const Tutors = () => {
       if (Array.isArray(data)) {
         setTutors(data);
       } else {
+<<<<<<< HEAD
         setAlertBox('Error: datos de tutores no válidos');
       }
     } catch (error) {
       console.error('fetchTutors error', error);
       setAlertBox('Error al obtener tutores');
+=======
+        console.error('Received data is not an array:', data);
+        alert('Error: Invalid data received.');
+      }
+    } catch (error) {
+      console.error('Error fetching tutors:', error);
+      alert('An error occurred while fetching tutors. Please try again.');
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
     }
   };
 
@@ -71,20 +87,80 @@ const Tutors = () => {
         setAlertBox('Error: datos de usuarios no válidos');
       }
     } catch (error) {
+<<<<<<< HEAD
       console.error('fetchUsers error', error);
       setAlertBox('Error al obtener usuarios');
+=======
+      console.error('Error fetching users:', error);
+      alert('An error occurred while fetching users. Please try again.');
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
     }
   };
 
   const getAssignedUserIds = () => tutors.map((t) => t.uid_users).filter(Boolean);
 
   const getAvailableUsers = () => {
+<<<<<<< HEAD
     const assigned = getAssignedUserIds();
     return users.filter((user) => {
       if (!user || !user.uid_users) return false;
       if (editMode && selectedTutor && selectedTutor.uid_users === user.uid_users) return true;
       return !assigned.includes(user.uid_users);
     });
+=======
+    const assignedUserIds = tutors.map((tutor) => tutor.uid_users);
+    return users.filter((user) => !assignedUserIds.includes(user.uid_users));
+  };
+
+  const saveTutor = async () => {
+    try {
+      const method = editMode ? 'PUT' : 'POST';
+      const url = editMode ? `${tutorsUrl}/${selectedTutor.id_tutor}` : tutorsUrl;
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
+
+      fetchTutors();
+      setShowModal(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error saving tutor:', error);
+      alert('An error occurred while saving the tutor. Please try again.');
+    }
+  };
+
+  const editTutor = (tutor) => {
+    setSelectedTutor(tutor);
+    setFormData({
+      uid_users: tutor.uid_users,
+    });
+    setEditMode(true);
+    setShowModal(true);
+  };
+
+  const deleteTutor = async (id) => {
+    try {
+      const response = await fetch(`${tutorsUrl}/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
+
+      fetchTutors();
+    } catch (error) {
+      console.error('Error deleting tutor:', error);
+      alert('An error occurred while deleting the tutor. Please try again.');
+    }
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
   };
 
   const handleFilterChange = (e) => {
@@ -104,16 +180,20 @@ const Tutors = () => {
     setIsSaving(false);
   };
 
+<<<<<<< HEAD
   const openAddModal = () => {
     resetForm();
     setShowModal(true);
   };
 
+=======
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
   const closeModal = () => {
     setShowModal(false);
     resetForm();
   };
 
+<<<<<<< HEAD
   const handleEdit = (tutor) => {
     setSelectedTutor(tutor);
     setFormData({ uid_users: tutor.uid_users || '' });
@@ -296,16 +376,34 @@ const Tutors = () => {
       <CCardHeader className="d-flex justify-content-between align-items-center">
         <h5 style={{ margin: 0 }}>Tutores</h5>
         <CButton color="success" onClick={openAddModal}>
+=======
+  const filteredTutors = tutors.filter((tutor) => {
+    return tutor.uid_users && tutor.uid_users.toString().includes(filter.uid_users);
+  });
+
+  return (
+    <CCard>
+      <CCardHeader>
+        <h5>Tutores</h5>
+        <CButton color="success" onClick={() => setShowModal(true)}>
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
           Agregar Tutor
         </CButton>
       </CCardHeader>
 
       <CCardBody>
+<<<<<<< HEAD
         {alertBox && <CAlert color="danger">{alertBox}</CAlert>}
 
         <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
           <CFormSelect
             aria-label="Filtrar por usuario"
+=======
+        <div className="mb-3">
+          <CFormInput
+            placeholder="Filtrar por ID de Usuario"
+            name="uid_users"
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
             value={filter.uid_users}
             name="uid_users"
             onChange={(e) => handleFilterChange(e)}
@@ -342,10 +440,17 @@ const Tutors = () => {
                 <CTableDataCell>{tutor.created_at}</CTableDataCell>
                 <CTableDataCell>{tutor.updated_at}</CTableDataCell>
                 <CTableDataCell>
+<<<<<<< HEAD
                   <CButton color="warning" size="sm" onClick={() => handleEdit(tutor)} style={{ marginRight: 8 }}>
                     Editar
                   </CButton>
                   <CButton color="danger" size="sm" onClick={() => handleDeleteClick(tutor.id_tutor)}>
+=======
+                  <CButton color="warning" size="sm" onClick={() => editTutor(tutor)}>
+                    Editar
+                  </CButton>{' '}
+                  <CButton color="danger" size="sm" onClick={() => deleteTutor(tutor.id_tutor)}>
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
                     Eliminar
                   </CButton>
                 </CTableDataCell>
@@ -354,7 +459,11 @@ const Tutors = () => {
           </CTableBody>
         </CTable>
 
+<<<<<<< HEAD
         <CModal visible={showModal} backdrop="static" onClose={closeModal} size="sm">
+=======
+        <CModal visible={showModal} onClose={closeModal}>
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
           <CModalHeader>
             <CModalTitle>{editMode ? 'Editar Tutor' : 'Agregar Tutor'}</CModalTitle>
           </CModalHeader>
@@ -367,14 +476,22 @@ const Tutors = () => {
               </div>
 
               <CFormSelect
+<<<<<<< HEAD
                 name="uid_users"
+=======
+                label="ID de Usuario"
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
                 value={formData.uid_users}
                 onChange={handleChange}
                 onBlur={handleBlur}
                 invalid={!!errors.uid_users}
                 aria-label="Seleccionar usuario tutor"
               >
+<<<<<<< HEAD
                 <option value="">{editMode ? 'Mantener usuario actual o seleccionar uno nuevo' : 'Seleccionar Usuario *'}</option>
+=======
+                <option value="">Seleccionar Usuario</option>
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
                 {getAvailableUsers().map((user) => (
                   <option key={user.uid_users} value={user.uid_users}>
                     {user.first_name} {user.last_name} ({user.uid_users})
@@ -391,6 +508,7 @@ const Tutors = () => {
           </CModalBody>
 
           <CModalFooter>
+<<<<<<< HEAD
             <CButton color="success" onClick={saveTutor} disabled={isSaving}>
               {isSaving ? 'Guardando...' : 'Guardar'}
             </CButton>
@@ -410,6 +528,12 @@ const Tutors = () => {
               {isDeleting ? 'Eliminando...' : 'Eliminar'}
             </CButton>
             <CButton color="secondary" onClick={handleCancelDelete} disabled={isDeleting}>
+=======
+            <CButton color="success" onClick={saveTutor}>
+              Guardar
+            </CButton>
+            <CButton color="secondary" onClick={closeModal}>
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
               Cancelar
             </CButton>
           </CModalFooter>

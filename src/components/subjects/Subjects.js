@@ -22,7 +22,11 @@ import {
   CRow,
   CCol,
 } from '@coreui/react';
+<<<<<<< HEAD
 import API_URL from '../../../config';
+=======
+import API_URL from '../../../config';  
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
 
 const Subjects = () => {
   const [subjects, setSubjects] = useState([]);
@@ -40,11 +44,14 @@ const Subjects = () => {
   const [alertBox, setAlertBox] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
+<<<<<<< HEAD
   // delete confirmation
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [idToDelete, setIdToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+=======
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
   const subjectsUrl = `${API_URL}/subjects`;
 
   useEffect(() => {
@@ -53,6 +60,7 @@ const Subjects = () => {
 
   const fetchSubjects = async () => {
     try {
+<<<<<<< HEAD
       const res = await fetch(subjectsUrl);
       const data = await res.json();
       if (Array.isArray(data)) {
@@ -64,12 +72,26 @@ const Subjects = () => {
     } catch (err) {
       console.error('fetchSubjects error', err);
       setAlertBox('Error al obtener asignaturas');
+=======
+      const response = await fetch(subjectsUrl);
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setSubjects(data);
+      } else {
+        console.error('Received data is not an array:', data);
+        alert('Error: Invalid data received.');
+      }
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      alert('An error occurred while fetching subjects. Please try again.');
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
     }
   };
 
   const parsePostgresUniqueError = (err) => {
     const result = { field: 'registro', value: null, message: 'Valor duplicado' };
     try {
+<<<<<<< HEAD
       if (!err) return result;
       if (typeof err.detail === 'string') {
         const m = err.detail.match(/\(([^)]+)\)=\(([^)]+)\)/);
@@ -93,6 +115,54 @@ const Subjects = () => {
       if (err.message) result.message = err.message;
     } catch (e) {
       // ignore
+=======
+      const method = editMode ? 'PUT' : 'POST';
+      const url = editMode ? `${subjectsUrl}/${selectedSubject.id_subject}` : subjectsUrl;
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
+
+      fetchSubjects();
+      setShowModal(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error saving subject:', error);
+      alert('An error occurred while saving the subject. Please try again.');
+    }
+  };
+
+  const handleEditSubject = (subject) => {
+    setSelectedSubject(subject);
+    setFormData({
+      id_class_schedules: subject.id_class_schedules,
+      id_school_year: subject.id_school_year,
+      name_subject: subject.name_subject,
+      description_subject: subject.description_subject,
+    });
+    setEditMode(true);
+    setShowModal(true);
+  };
+
+  const handleDeleteSubject = async (id) => {
+    try {
+      const response = await fetch(`${subjectsUrl}/${id}`, { method: 'DELETE' });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
+
+      fetchSubjects();
+    } catch (error) {
+      console.error('Error deleting subject:', error);
+      alert('An error occurred while deleting the subject. Please try again.');
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
     }
     return result;
   };
@@ -332,9 +402,15 @@ const Subjects = () => {
 
   return (
     <CCard>
+<<<<<<< HEAD
       <CCardHeader className="d-flex justify-content-between align-items-center">
         <h5 style={{ margin: 0 }}>Asignaturas</h5>
         <CButton color="success" onClick={openAddModal}>
+=======
+      <CCardHeader>
+        <h5>Asignaturas</h5>
+        <CButton color="success" onClick={() => setShowModal(true)}>
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
           Agregar Asignatura
         </CButton>
       </CCardHeader>
@@ -390,6 +466,7 @@ const Subjects = () => {
                 <CTableDataCell>{subject.created_at}</CTableDataCell>
                 <CTableDataCell>{subject.updated_at}</CTableDataCell>
                 <CTableDataCell>
+<<<<<<< HEAD
                   <CButton
                     color="warning"
                     size="sm"
@@ -399,6 +476,12 @@ const Subjects = () => {
                     Editar
                   </CButton>
                   <CButton color="danger" size="sm" onClick={() => handleDeleteClick(subject.id_subject)}>
+=======
+                  <CButton color="warning" size="sm" onClick={() => handleEditSubject(subject)}>
+                    Editar
+                  </CButton>{' '}
+                  <CButton color="danger" size="sm" onClick={() => handleDeleteSubject(subject.id_subject)}>
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
                     Eliminar
                   </CButton>
                 </CTableDataCell>
@@ -418,6 +501,7 @@ const Subjects = () => {
               </CAlert>
             )}
             <CForm>
+<<<<<<< HEAD
               <CRow className="mb-2">
                 <CCol md={6}>
                   <CFormInput
@@ -514,6 +598,42 @@ const Subjects = () => {
               {isDeleting ? 'Eliminando...' : 'Eliminar'}
             </CButton>
             <CButton color="secondary" onClick={handleCancelDelete} disabled={isDeleting}>
+=======
+              <CFormInput
+                type="text"
+                label="ID Horario de Clase"
+                value={formData.id_class_schedules}
+                onChange={(e) => setFormData({ ...formData, id_class_schedules: e.target.value })}
+                required
+              />
+              <CFormInput
+                type="text"
+                label="ID Año Escolar"
+                value={formData.id_school_year}
+                onChange={(e) => setFormData({ ...formData, id_school_year: e.target.value })}
+                required
+              />
+              <CFormInput
+                type="text"
+                label="Nombre de Asignatura"
+                value={formData.name_subject}
+                onChange={(e) => setFormData({ ...formData, name_subject: e.target.value })}
+                required
+              />
+              <CFormTextarea
+                label="Descripción"
+                value={formData.description_subject}
+                onChange={(e) => setFormData({ ...formData, description_subject: e.target.value })}
+                rows="3"
+              />
+            </CForm>
+          </CModalBody>
+          <CModalFooter>
+            <CButton color="success" onClick={handleSaveSubject}>
+              Guardar
+            </CButton>
+            <CButton color="secondary" onClick={handleCloseModal}>
+>>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
               Cancelar
             </CButton>
           </CModalFooter>
