@@ -11,6 +11,7 @@ import {
 } from 'reactstrap';
 import { useNavigate } from 'react-router-dom'; 
 import './login.css';
+import API_URL from '../../../config'; // Importar URL centralizada
 
 const LoginForm = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
@@ -21,14 +22,13 @@ const LoginForm = ({ onLoginSuccess }) => {
 
   const navigate = useNavigate(); 
 
-  const API_URL = 'http://localhost:4000/api/auth'; 
-
   const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
   
     try {
-      const response = await fetch(`${API_URL}/login`, {
+      // Usar la ruta correcta del backend (/auth/login)
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,9 +44,14 @@ const LoginForm = ({ onLoginSuccess }) => {
       const data = await response.json();
       const { token } = data;
   
-      localStorage.setItem('authToken', token);
+      // Guardar con la clave estándar 'token' (no authToken)
+      localStorage.setItem('token', token); 
   
-      onLoginSuccess(data.user);
+      // Notificar al componente padre (App.js)
+      if (onLoginSuccess) {
+        onLoginSuccess(token);
+      }
+      
       navigate('/dashboard'); 
     } catch (error) {
       console.error('Error during login:', error);
@@ -59,7 +64,7 @@ const LoginForm = ({ onLoginSuccess }) => {
     setErrorMessage(null);
 
     try {
-      const response = await fetch(`${API_URL}/password-reset/request`, {
+      const response = await fetch(`${API_URL}/auth/password-reset/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -90,7 +95,7 @@ const LoginForm = ({ onLoginSuccess }) => {
           <CardBody>
             <h1 className="text-center">Login</h1>
             {errorMessage && (
-              <Alert color="danger" className="text-center" timeout={3000}>
+              <Alert color="danger" className="text-center">
                 {errorMessage}
               </Alert>
             )}
@@ -103,6 +108,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  autoComplete="username"
                 />
               </FormGroup>
               <FormGroup>
@@ -113,6 +119,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoComplete="current-password"
                 />
               </FormGroup>
               <Button color="dark" type="submit" className="btn-spacing" block>
@@ -123,6 +130,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                 className="btn-spacing"
                 onClick={() => setShowRecovery(!showRecovery)}
                 block
+                type="button"
               >
                 Forgot your password?
               </Button>

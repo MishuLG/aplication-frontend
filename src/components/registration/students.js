@@ -30,10 +30,12 @@ import API_URL from '../../../config';
 
 const Students = () => {
   const [students, setStudents] = useState([]);
-  const [tutors, setTutors] = useState([]);
-  const [sections, setSections] = useState([]);
-  const [schoolYears, setSchoolYears] = useState([]);
-  const [users, setUsers] = useState([]);
+  
+  // Listas para Selects
+  const [tutorsList, setTutorsList] = useState([]);
+  const [sectionsList, setSectionsList] = useState([]);
+  const [schoolYearsList, setSchoolYearsList] = useState([]);
+  const [usersList, setUsersList] = useState([]); // Para mapear nombres de tutores
 
   const [formData, setFormData] = useState({
     id_tutor: '',
@@ -49,130 +51,25 @@ const Students = () => {
     zip_code: '',
   });
 
+  // UI States
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [filter, setFilter] = useState({ first_name_student: '', id_section: '' });
-  const [validated, setValidated] = useState(false);
-  const [errorMsg, setErrorMsg] = useState(null);
+  
+  // Validaciones
   const [errors, setErrors] = useState({});
+  const [alertBox, setAlertBox] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Modal Borrado
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [idToDelete, setIdToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const studentsUrl = `${API_URL}/students`;
-  const tutorsUrl = `${API_URL}/tutors`;
-  const sectionsUrl = `${API_URL}/sections`;
-  const schoolYearsUrl = `${API_URL}/school_years`;
-  const usersUrl = `${API_URL}/users`;
 
-  useEffect(() => {
-    fetchAllDependencies();
-  }, []);
-
-  const fetchAllDependencies = async () => {
-    await Promise.all([fetchStudents(), fetchTutors(), fetchUsers(), fetchSections(), fetchSchoolYears()]);
-  };
-
-  const handleDeleteClick = (id) => {
-    setIdToDelete(id);
-    setShowDeleteModal(true);
-  };
-
-  const handleCancelDelete = () => {
-    setShowDeleteModal(false);
-    setIdToDelete(null);
-  };
-
-  const confirmDelete = async () => {
-    if (!idToDelete) return;
-    try {
-      const response = await fetch(`${studentsUrl}/${idToDelete}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        let msg = `Error ${response.status}`;
-        try {
-          const ct = response.headers.get('content-type') || '';
-          if (ct.includes('application/json')) {
-            const jd = await response.json();
-            msg = jd.message || JSON.stringify(jd);
-          } else {
-            msg = await response.text();
-          }
-        } catch (_) {}
-        alert(msg || 'Error al eliminar estudiante');
-        return;
-      }
-      await fetchStudents();
-    } catch (error) {
-      console.error('Error deleting student:', error);
-      alert('An error occurred while deleting the student.');
-    } finally {
-      setShowDeleteModal(false);
-      setIdToDelete(null);
-    }
-  };
-
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch(usersUrl);
-      if (!response.ok) throw new Error(`Error ${response.status}`);
-      const data = await response.json();
-      if (Array.isArray(data)) setUsers(data);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
-
-  const fetchStudents = async () => {
-    try {
-      const response = await fetch(studentsUrl);
-      if (!response.ok) throw new Error(`Error ${response.status}`);
-      const data = await response.json();
-      if (Array.isArray(data)) setStudents(data);
-      else {
-        console.error('fetchStudents invalid data', data);
-        alert('Error: The received students data is not valid.');
-      }
-    } catch (error) {
-      console.error('Error fetching students:', error);
-      alert('An error occurred while fetching students. Please try again.');
-    }
-  };
-
-  const fetchTutors = async () => {
-    try {
-      const response = await fetch(tutorsUrl);
-      if (!response.ok) throw new Error(`Error ${response.status}`);
-      const data = await response.json();
-      if (Array.isArray(data)) setTutors(data);
-    } catch (error) {
-      console.error('Error fetching tutors:', error);
-    }
-  };
-
-  const fetchSections = async () => {
-    try {
-      const response = await fetch(sectionsUrl);
-      if (!response.ok) throw new Error(`Error ${response.status}`);
-      const data = await response.json();
-      if (Array.isArray(data)) setSections(data);
-    } catch (error) {
-      console.error('Error fetching sections:', error);
-    }
-  };
-
-  const fetchSchoolYears = async () => {
-    try {
-      const response = await fetch(schoolYearsUrl);
-      if (!response.ok) throw new Error(`Error ${response.status}`);
-      const data = await response.json();
-      if (Array.isArray(data)) setSchoolYears(data);
-    } catch (error) {
-      console.error('Error fetching school years:', error);
-    }
-  };
-
+  // Campos requeridos
   const requiredFields = [
     'id_tutor',
     'id_section',
@@ -186,122 +83,119 @@ const Students = () => {
     'zip_code',
   ];
 
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  const fetchAllData = async () => {
+    // Cargar estudiantes y dependencias (Tutores, Usuarios para nombres, Secciones, Años)
+    try {
+        await fetchStudents();
+        await fetchDependencies(`${API_URL}/tutors`, setTutorsList);
+        await fetchDependencies(`${API_URL}/users`, setUsersList);
+        await fetchDependencies(`${API_URL}/sections`, setSectionsList);
+        await fetchDependencies(`${API_URL}/school_years`, setSchoolYearsList);
+    } catch (error) {
+        console.error("Error cargando datos iniciales:", error);
+    }
+  };
+
+  const fetchDependencies = async (url, setter) => {
+      try {
+          const res = await fetch(url);
+          if (res.ok) setter(await res.json());
+      } catch (e) { console.error(`Error fetching ${url}`, e); }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const response = await fetch(studentsUrl);
+      if (!response.ok) throw new Error('Error al cargar estudiantes');
+      const data = await response.json();
+      setStudents(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setAlertBox('Error al obtener la lista de estudiantes.');
+    }
+  };
+
+  // --- VALIDACIONES ---
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     let newValue = value;
-    if (name === 'first_name_student' || name === 'last_name_student') {
+
+    // Solo letras para nombres y ciudad
+    if (['first_name_student', 'last_name_student', 'city'].includes(name)) {
       newValue = value.replace(/[^a-zA-ZñÑáéíóúÁÉÍÓÚ\s]/g, '');
     }
+    // Solo números y guiones para CP
     if (name === 'zip_code') {
-      newValue = value.replace(/[^\d\- ]/g, '');
+      newValue = value.replace(/[^\d\-]/g, '');
     }
+
     setFormData((prev) => ({ ...prev, [name]: newValue }));
-    setErrors((prev) => ({ ...prev, [name]: '' }));
-    setErrorMsg(null);
+    
+    // Limpiar error al escribir
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
+    setAlertBox(null);
   };
 
   const handleBlur = (e) => {
-    const { name, value } = e.target;
-    if (requiredFields.includes(name) && String(value || '').trim() === '') {
-      setErrors((prev) => ({ ...prev, [name]: 'Este campo es obligatorio y no puede estar vacío.' }));
-      return;
-    }
-    if (name === 'date_of_birth_student') {
-      const dob = new Date(value);
-      if (isNaN(dob.getTime())) {
-        setErrors((prev) => ({ ...prev, [name]: 'La fecha de nacimiento no es válida.' }));
-        return;
+      const { name, value } = e.target;
+      if (requiredFields.includes(name) && !value.trim()) {
+          setErrors(prev => ({ ...prev, [name]: 'Este campo es obligatorio.' }));
       }
-      const today = new Date();
-      dob.setHours(0, 0, 0, 0);
-      today.setHours(0, 0, 0, 0);
-      if (dob > today) {
-        setErrors((prev) => ({ ...prev, [name]: 'La fecha no puede ser futura.' }));
-        return;
+      
+      // Validación de edad (ej. 3 años)
+      if (name === 'date_of_birth_student' && value) {
+          const dob = new Date(value);
+          const today = new Date();
+          let age = today.getFullYear() - dob.getFullYear();
+          const m = today.getMonth() - dob.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+          
+          if (age < 3) setErrors(prev => ({ ...prev, date_of_birth_student: 'Edad mínima: 3 años.' }));
+          if (dob > today) setErrors(prev => ({ ...prev, date_of_birth_student: 'Fecha inválida.' }));
       }
-      const minAgeDate = new Date();
-      minAgeDate.setFullYear(today.getFullYear() - 4);
-      minAgeDate.setHours(0, 0, 0, 0);
-      if (dob > minAgeDate) {
-        setErrors((prev) => ({ ...prev, [name]: 'Edad mínima 4 años.' }));
-        return;
-      }
-      setErrors((prev) => ({ ...prev, [name]: '' }));
-    } else if (name === 'zip_code' && value && isNaN(Number(value.replace(/[- ]/g, '')))) {
-      setErrors((prev) => ({ ...prev, [name]: 'El código postal debe ser numérico.' }));
-    } else {
-      setErrors((prev) => ({ ...prev, [name]: '' }));
-    }
   };
 
   const validateForm = () => {
-    setValidated(true);
-    setErrorMsg(null);
-    const newErrors = {};
+      const newErrors = {};
+      let isValid = true;
 
-    for (const field of requiredFields) {
-      const val = formData[field];
-      if (!val || String(val).trim() === '') {
-        newErrors[field] = 'Este campo es obligatorio y no puede estar vacío.';
+      requiredFields.forEach(field => {
+          if (!formData[field] || String(formData[field]).trim() === '') {
+              newErrors[field] = 'Este campo es obligatorio.';
+              isValid = false;
+          }
+      });
+
+      // Validación final de edad
+      if (formData.date_of_birth_student) {
+          const dob = new Date(formData.date_of_birth_student);
+          const today = new Date();
+          let age = today.getFullYear() - dob.getFullYear();
+          if (age < 3) {
+              newErrors.date_of_birth_student = 'Edad mínima: 3 años.';
+              isValid = false;
+          }
       }
-    }
 
-    if (formData.first_name_student && formData.first_name_student.trim().length < 2) {
-      newErrors.first_name_student = 'El nombre debe tener al menos 2 caracteres.';
-    }
-    if (formData.last_name_student && formData.last_name_student.trim().length < 2) {
-      newErrors.last_name_student = 'El apellido debe tener al menos 2 caracteres.';
-    }
-
-    if (formData.date_of_birth_student) {
-      const dob = new Date(formData.date_of_birth_student);
-      const today = new Date();
-      dob.setHours(0, 0, 0, 0);
-      today.setHours(0, 0, 0, 0);
-
-      if (isNaN(dob.getTime())) {
-        newErrors.date_of_birth_student = 'La fecha de nacimiento no es válida.';
-      } else if (dob > today) {
-        newErrors.date_of_birth_student = 'La fecha de nacimiento no puede ser futura.';
-      } else {
-        const minAgeDate = new Date();
-        minAgeDate.setFullYear(today.getFullYear() - 4);
-        minAgeDate.setHours(0, 0, 0, 0);
-        if (dob > minAgeDate) {
-          newErrors.date_of_birth_student = 'El estudiante no cumple con la edad mínima (4 años).';
-        }
-      }
-    }
-
-    if (formData.zip_code && isNaN(Number(formData.zip_code.replace(/[- ]/g, '')))) {
-      newErrors.zip_code = 'El código postal debe ser un valor numérico válido.';
-    }
-
-    setErrors(newErrors);
-
-    const isValid = Object.keys(newErrors).length === 0;
-    setValidated(isValid);
-    if (!isValid) setErrorMsg('Corrija los errores marcados antes de guardar.');
-    else setErrorMsg(null);
-    return isValid;
+      setErrors(newErrors);
+      if (!isValid) setAlertBox('Por favor, corrija los errores del formulario.');
+      return isValid;
   };
 
-  const markAllRequiredAsDuplicate = (message = 'El estudiante ya existe.') => {
-    const dupErrors = {};
-    requiredFields.forEach((f) => {
-      dupErrors[f] = message;
-    });
-    setErrors(dupErrors);
-    setErrorMsg(message);
-    setValidated(false);
-  };
+  // --- CRUD ---
 
-  const saveStudent = async () => {
+  const handleSaveStudent = async () => {
     if (!validateForm()) return;
+    setIsSaving(true);
+    setAlertBox(null);
 
     try {
       const method = editMode ? 'PUT' : 'POST';
-      const url = editMode && selectedStudent ? `${studentsUrl}/${selectedStudent.id_student}` : studentsUrl;
+      const url = editMode ? `${studentsUrl}/${selectedStudent.id_student}` : studentsUrl;
 
       const response = await fetch(url, {
         method,
@@ -309,172 +203,139 @@ const Students = () => {
         body: JSON.stringify(formData),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        let errorMessage = 'Error en la respuesta del servidor';
-        let errorData = null;
-        try {
-          errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          // ignore parse
-        }
-
-        const msgLower = (errorMessage || '').toLowerCase();
-        const isDuplicate =
-          response.status === 409 ||
-          /ya existe/.test(msgLower) ||
-          /already exists/.test(msgLower) ||
-          /duplicate/.test(msgLower);
-
-        if (isDuplicate) {
-          markAllRequiredAsDuplicate(errorData?.message || 'Ya existente');
-          return;
-        }
-
-        throw new Error(errorMessage);
+        throw new Error(data.message || 'Error al guardar.');
       }
 
       await fetchStudents();
-      setShowModal(false);
-      resetForm();
+      handleCloseModal();
     } catch (error) {
-      console.error('Error saving student:', error);
-      setErrorMsg(error.message || 'Ocurrió un error al guardar el estudiante. Por favor, inténtelo de nuevo.');
+      setAlertBox(error.message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const editStudent = (student) => {
+  const handleDeleteClick = (id) => {
+    setIdToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!idToDelete) return;
+    setIsDeleting(true);
+    try {
+        const res = await fetch(`${studentsUrl}/${idToDelete}`, { method: 'DELETE' });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.message || 'Error al eliminar');
+        }
+        await fetchStudents();
+        setShowDeleteModal(false);
+    } catch (error) {
+        setAlertBox(error.message);
+        setShowDeleteModal(false);
+    } finally {
+        setIsDeleting(false);
+    }
+  };
+
+  // --- UI Helpers ---
+
+  const handleEditStudent = (student) => {
     setSelectedStudent(student);
     setFormData({
-      id_tutor: student.id_tutor ?? '',
-      id_section: student.id_section ?? '',
-      id_school_year: student.id_school_year ?? '',
-      first_name_student: student.first_name_student ?? '',
-      last_name_student: student.last_name_student ?? '',
+      id_tutor: student.id_tutor || '',
+      id_section: student.id_section || '',
+      id_school_year: student.id_school_year || '',
+      first_name_student: student.first_name_student,
+      last_name_student: student.last_name_student,
       date_of_birth_student: student.date_of_birth_student ? student.date_of_birth_student.split('T')[0] : '',
-      health_record: student.health_record ?? '',
-      gender: student.gender ?? '',
-      street: student.street ?? '',
-      city: student.city ?? '',
-      zip_code: student.zip_code ?? '',
+      health_record: student.health_record || '',
+      gender: student.gender || '',
+      street: student.street || '',
+      city: student.city || '',
+      zip_code: student.zip_code || '',
     });
     setEditMode(true);
-    setValidated(false);
-    setErrorMsg(null);
     setErrors({});
+    setAlertBox(null);
     setShowModal(true);
   };
 
-  const resetForm = () => {
+  const handleCloseModal = () => {
+    setShowModal(false);
     setFormData({
-      id_tutor: '',
-      id_section: '',
-      id_school_year: '',
-      first_name_student: '',
-      last_name_student: '',
-      date_of_birth_student: '',
-      health_record: '',
-      gender: '',
-      street: '',
-      city: '',
-      zip_code: '',
+      id_tutor: '', id_section: '', id_school_year: '',
+      first_name_student: '', last_name_student: '', date_of_birth_student: '',
+      health_record: '', gender: '', street: '', city: '', zip_code: '',
     });
     setEditMode(false);
     setSelectedStudent(null);
-    setValidated(false);
-    setErrorMsg(null);
     setErrors({});
+    setAlertBox(null);
   };
 
-  const handleFilterChange = (e) => {
-    setFilter({ ...filter, [e.target.name]: e.target.value });
+  const renderError = (field) => errors[field] ? <div style={{color: '#dc3545', fontSize: '0.8rem'}}>{errors[field]}</div> : null;
+
+  // Helper para mostrar nombre del tutor en el Select (cruzando con la lista de usuarios)
+  const getTutorLabel = (tutorId) => {
+      const tutor = tutorsList.find(t => t.id_tutor === tutorId);
+      if (!tutor) return `ID: ${tutorId}`;
+      const user = usersList.find(u => u.uid_users === tutor.uid_users);
+      return user ? `${user.first_name} ${user.last_name}` : `Tutor #${tutorId}`;
   };
 
-  const filteredStudents = students.filter((student) => {
-    const studentName = student.first_name_student ? student.first_name_student.toLowerCase() : '';
-    const sectionId = student.id_section ? String(student.id_section) : '';
-    return studentName.includes((filter.first_name_student || '').toLowerCase()) && sectionId.includes(filter.id_section || '');
-  });
-
-  const renderErrorText = (field) => {
-    if (!errors[field]) return null;
-    return (
-      <div style={{ color: 'red', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-        <strong style={{ marginRight: 6 }}>✖</strong>
-        {errors[field]}
-      </div>
-    );
-  };
+  const filteredStudents = students.filter(s => 
+      s.first_name_student.toLowerCase().includes(filter.first_name_student.toLowerCase())
+  );
 
   return (
     <CCard>
       <CCardHeader className="d-flex justify-content-between align-items-center">
-        <h5 style={{ margin: 0 }}>Registros de Estudiantes</h5>
-        <CButton
-          color="success"
-          variant="outline"
-          onClick={() => {
-            resetForm();
-            setShowModal(true);
-          }}
-        >
-          <CIcon icon={cilPlus} className="me-2" />
-          Agregar Registro
+        <h5 className="m-0">Estudiantes</h5>
+        <CButton color="success" onClick={() => { handleCloseModal(); setShowModal(true); }}>
+          <CIcon icon={cilPlus} className="me-2" /> Agregar
         </CButton>
       </CCardHeader>
       <CCardBody>
+        {alertBox && !showModal && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
+
         <div className="mb-3">
           <CFormInput
-            placeholder="Filtrar por nombre"
+            placeholder="Buscar por nombre..."
             name="first_name_student"
             value={filter.first_name_student}
-            onChange={handleFilterChange}
-            className="mb-2"
+            onChange={(e) => setFilter({ ...filter, first_name_student: e.target.value })}
+            style={{ maxWidth: '300px' }}
           />
-          <CFormInput placeholder="Filtrar por ID de sección" name="id_section" value={filter.id_section} onChange={handleFilterChange} />
         </div>
 
-        <CTable className="table-fade-in" align="middle" small striped hover responsive>
+        <CTable hover responsive bordered>
           <CTableHead>
             <CTableRow>
-              <CTableHeaderCell>ID Estudiante</CTableHeaderCell>
-              <CTableHeaderCell>ID Tutor</CTableHeaderCell>
-              <CTableHeaderCell>ID Sección</CTableHeaderCell>
-              <CTableHeaderCell>ID Año Escolar</CTableHeaderCell>
-              <CTableHeaderCell>Nombre</CTableHeaderCell>
-              <CTableHeaderCell>Apellido</CTableHeaderCell>
-              <CTableHeaderCell>Fecha de Nacimiento</CTableHeaderCell>
-              <CTableHeaderCell>Historial Médico</CTableHeaderCell>
-              <CTableHeaderCell>Género</CTableHeaderCell>
-              <CTableHeaderCell>Calle</CTableHeaderCell>
-              <CTableHeaderCell>Ciudad</CTableHeaderCell>
-              <CTableHeaderCell>Código Postal</CTableHeaderCell>
+              <CTableHeaderCell>ID</CTableHeaderCell>
+              <CTableHeaderCell>Nombre Completo</CTableHeaderCell>
+              <CTableHeaderCell>Fecha Nac.</CTableHeaderCell>
+              <CTableHeaderCell>Tutor</CTableHeaderCell>
+              <CTableHeaderCell>Sección</CTableHeaderCell>
               <CTableHeaderCell>Acciones</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
-            {filteredStudents.map((student) => (
-              <CTableRow key={student.id_student}>
-                <CTableDataCell>{student.id_student}</CTableDataCell>
-                <CTableDataCell>{student.id_tutor}</CTableDataCell>
-                <CTableDataCell>{student.id_section}</CTableDataCell>
-                <CTableDataCell>{student.id_school_year}</CTableDataCell>
-                <CTableDataCell>{student.first_name_student}</CTableDataCell>
-                <CTableDataCell>{student.last_name_student}</CTableDataCell>
-                <CTableDataCell>{student.date_of_birth_student}</CTableDataCell>
-                <CTableDataCell>{student.health_record}</CTableDataCell>
-                <CTableDataCell>{student.gender}</CTableDataCell>
-                <CTableDataCell>{student.street}</CTableDataCell>
-                <CTableDataCell>{student.city}</CTableDataCell>
-                <CTableDataCell>{student.zip_code}</CTableDataCell>
+            {filteredStudents.map((s) => (
+              <CTableRow key={s.id_student}>
+                <CTableDataCell>{s.id_student}</CTableDataCell>
+                <CTableDataCell>{s.first_name_student} {s.last_name_student}</CTableDataCell>
+                <CTableDataCell>{s.date_of_birth_student}</CTableDataCell>
+                <CTableDataCell>{getTutorLabel(s.id_tutor)}</CTableDataCell>
+                <CTableDataCell>{s.id_section}</CTableDataCell>
                 <CTableDataCell>
                   <CButtonGroup size="sm">
-                    <CButton color="warning" variant="ghost" onClick={() => editStudent(student)} title="Editar Registro">
-                      <CIcon icon={cilPencil} />
-                    </CButton>
-                    <CButton color="danger" variant="ghost" onClick={() => handleDeleteClick(student.id_student)} title="Eliminar Registro">
-                      <CIcon icon={cilTrash} />
-                    </CButton>
+                    <CButton color="warning" variant="outline" onClick={() => handleEditStudent(s)}><CIcon icon={cilPencil} /></CButton>
+                    <CButton color="danger" variant="outline" onClick={() => handleDeleteClick(s.id_student)}><CIcon icon={cilTrash} /></CButton>
                   </CButtonGroup>
                 </CTableDataCell>
               </CTableRow>
@@ -482,229 +343,84 @@ const Students = () => {
           </CTableBody>
         </CTable>
 
-        <CModal visible={showDeleteModal} onClose={handleCancelDelete} backdrop="static">
-          <CModalHeader>
-            <CModalTitle>Confirmar Eliminación</CModalTitle>
-          </CModalHeader>
-          <CModalBody>¿Está seguro de que desea eliminar este registro? Esta acción no se puede deshacer.</CModalBody>
-          <CModalFooter>
-            <CButton color="danger" onClick={confirmDelete}>
-              Aceptar (Eliminar)
-            </CButton>
-            <CButton color="secondary" onClick={handleCancelDelete}>
-              Cancelar
-            </CButton>
-          </CModalFooter>
+        {/* Modal Delete */}
+        <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} backdrop="static">
+            <CModalHeader><CModalTitle>Confirmar</CModalTitle></CModalHeader>
+            <CModalBody>¿Eliminar este estudiante? Esta acción borrará sus notas y asistencias.</CModalBody>
+            <CModalFooter>
+                <CButton color="danger" onClick={confirmDelete} disabled={isDeleting}>Eliminar</CButton>
+                <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</CButton>
+            </CModalFooter>
         </CModal>
 
-        <CModal
-          visible={showModal}
-          size="lg"
-          backdrop="static"
-          onClose={() => {
-            setShowModal(false);
-            resetForm();
-          }}
-        >
-          <CModalHeader>
-            <CModalTitle>{editMode ? 'Editar Estudiante' : 'Agregar Estudiante'}</CModalTitle>
-          </CModalHeader>
+        {/* Modal Form */}
+        <CModal visible={showModal} onClose={handleCloseModal} backdrop="static" size="lg">
+          <CModalHeader><CModalTitle>{editMode ? 'Editar' : 'Nuevo'} Estudiante</CModalTitle></CModalHeader>
           <CModalBody>
-            {errorMsg && (
-              <CAlert color="danger" className="mb-3">
-                <strong>✖ </strong>
-                {errorMsg}
-              </CAlert>
-            )}
+            {alertBox && <CAlert color="danger">{alertBox}</CAlert>}
+            <CForm>
+                <CRow className="mb-3">
+                    <CCol md={4}>
+                        <CFormSelect label="Tutor *" name="id_tutor" value={formData.id_tutor} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.id_tutor}>
+                            <option value="">Seleccione Tutor...</option>
+                            {tutorsList.map(t => <option key={t.id_tutor} value={t.id_tutor}>{getTutorLabel(t.id_tutor)}</option>)}
+                        </CFormSelect>
+                        {renderError('id_tutor')}
+                    </CCol>
+                    <CCol md={4}>
+                        <CFormSelect label="Sección *" name="id_section" value={formData.id_section} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.id_section}>
+                            <option value="">Seleccione Sección...</option>
+                            {sectionsList.map(s => <option key={s.id_section} value={s.id_section}>Sección {s.num_section}</option>)}
+                        </CFormSelect>
+                        {renderError('id_section')}
+                    </CCol>
+                    <CCol md={4}>
+                        <CFormSelect label="Año Escolar *" name="id_school_year" value={formData.id_school_year} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.id_school_year}>
+                            <option value="">Seleccione Año...</option>
+                            {schoolYearsList.map(y => <option key={y.id_school_year} value={y.id_school_year}>{y.school_grade} ({y.start_year})</option>)}
+                        </CFormSelect>
+                        {renderError('id_school_year')}
+                    </CCol>
+                </CRow>
 
-            <CForm noValidate validated={validated} className="row g-3">
-              <CRow className="mb-3">
-                <CCol md={4}>
-                  <CFormSelect
-                    name="id_tutor"
-                    label="ID Tutor (*)"
-                    value={formData.id_tutor}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    required
-                    invalid={!!errors.id_tutor}
-                  >
-                    <option value="">Seleccionar Tutor</option>
-                    {tutors.map((tutor) => {
-                      const user = users.find((u) => u.uid_users === tutor.uid_users);
-                      const displayLabel = user ? `${tutor.id_tutor} (${user.first_name} ${user.last_name})` : `${tutor.id_tutor} (Usuario: ${tutor.uid_users})`;
-                      return (
-                        <option key={tutor.id_tutor} value={tutor.id_tutor}>
-                          {displayLabel}
-                        </option>
-                      );
-                    })}
-                  </CFormSelect>
-                  {renderErrorText('id_tutor')}
-                </CCol>
-                <CCol md={4}>
-                  <CFormSelect
-                    name="id_section"
-                    label="ID Sección (*)"
-                    value={formData.id_section}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    required
-                    invalid={!!errors.id_section}
-                  >
-                    <option value="">Seleccionar Sección</option>
-                    {sections.map((section) => (
-                      <option key={section.id_section} value={section.id_section}>
-                        {section.num_section}
-                      </option>
-                    ))}
-                  </CFormSelect>
-                  {renderErrorText('id_section')}
-                </CCol>
-                <CCol md={4}>
-                  <CFormSelect
-                    name="id_school_year"
-                    label="ID Año Escolar (*)"
-                    value={formData.id_school_year}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    required
-                    invalid={!!errors.id_school_year}
-                  >
-                    <option value="">Seleccionar Año Escolar</option>
-                    {schoolYears.map((year) => (
-                      <option key={year.id_school_year} value={year.id_school_year}>
-                        {year.school_grade} ({year.start_year})
-                      </option>
-                    ))}
-                  </CFormSelect>
-                  {renderErrorText('id_school_year')}
-                </CCol>
-              </CRow>
+                <CRow className="mb-3">
+                    <CCol md={6}>
+                        <CFormInput label="Nombre *" name="first_name_student" value={formData.first_name_student} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.first_name_student} />
+                        {renderError('first_name_student')}
+                    </CCol>
+                    <CCol md={6}>
+                        <CFormInput label="Apellido *" name="last_name_student" value={formData.last_name_student} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.last_name_student} />
+                        {renderError('last_name_student')}
+                    </CCol>
+                </CRow>
 
-              <CRow className="mb-3">
-                <CCol md={6}>
-                  <CFormInput
-                    name="first_name_student"
-                    type="text"
-                    label="Nombre (*)"
-                    value={formData.first_name_student}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    required
-                    invalid={!!errors.first_name_student}
-                  />
-                  {renderErrorText('first_name_student')}
-                </CCol>
-                <CCol md={6}>
-                  <CFormInput
-                    name="last_name_student"
-                    type="text"
-                    label="Apellido (*)"
-                    value={formData.last_name_student}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    required
-                    invalid={!!errors.last_name_student}
-                  />
-                  {renderErrorText('last_name_student')}
-                </CCol>
-              </CRow>
+                <CRow className="mb-3">
+                    <CCol md={6}>
+                        <CFormInput type="date" label="Fecha Nacimiento *" name="date_of_birth_student" value={formData.date_of_birth_student} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.date_of_birth_student} />
+                        {renderError('date_of_birth_student')}
+                    </CCol>
+                    <CCol md={6}>
+                        <CFormSelect label="Género *" name="gender" value={formData.gender} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.gender}>
+                            <option value="">Seleccione...</option>
+                            <option value="M">Masculino</option>
+                            <option value="F">Femenino</option>
+                        </CFormSelect>
+                        {renderError('gender')}
+                    </CCol>
+                </CRow>
 
-              <CRow className="mb-3">
-                <CCol md={6}>
-                  <CFormInput
-                    name="date_of_birth_student"
-                    type="date"
-                    label="Fecha de Nacimiento (*)"
-                    value={formData.date_of_birth_student}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    required
-                    invalid={!!errors.date_of_birth_student}
-                  />
-                  {renderErrorText('date_of_birth_student')}
-                </CCol>
-                <CCol md={6}>
-                  <CFormSelect
-                    name="gender"
-                    label="Género (*)"
-                    value={formData.gender}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    required
-                    invalid={!!errors.gender}
-                  >
-                    <option value="">Seleccionar Género</option>
-                    <option value="M">Masculino</option>
-                    <option value="F">Femenino</option>
-                  </CFormSelect>
-                  {renderErrorText('gender')}
-                </CCol>
-              </CRow>
+                <CRow className="mb-3">
+                    <CCol md={5}><CFormInput label="Calle *" name="street" value={formData.street} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.street} />{renderError('street')}</CCol>
+                    <CCol md={4}><CFormInput label="Ciudad *" name="city" value={formData.city} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.city} />{renderError('city')}</CCol>
+                    <CCol md={3}><CFormInput label="C.P. *" name="zip_code" value={formData.zip_code} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.zip_code} />{renderError('zip_code')}</CCol>
+                </CRow>
 
-              <CRow className="mb-3">
-                <CCol md={5}>
-                  <CFormInput
-                    name="street"
-                    type="text"
-                    label="Calle (*)"
-                    value={formData.street}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    required
-                    invalid={!!errors.street}
-                  />
-                  {renderErrorText('street')}
-                </CCol>
-                <CCol md={4}>
-                  <CFormInput
-                    name="city"
-                    type="text"
-                    label="Ciudad (*)"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    required
-                    invalid={!!errors.city}
-                  />
-                  {renderErrorText('city')}
-                </CCol>
-                <CCol md={3}>
-                  <CFormInput
-                    name="zip_code"
-                    type="text"
-                    label="Código Postal (*)"
-                    value={formData.zip_code}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    required
-                    invalid={!!errors.zip_code}
-                  />
-                  {renderErrorText('zip_code')}
-                </CCol>
-              </CRow>
-
-              <CRow className="mb-3">
-                <CCol xs={12}>
-                  <CFormTextarea name="health_record" label="Historial Médico" value={formData.health_record} onChange={handleInputChange} rows="3" />
-                </CCol>
-              </CRow>
+                <CFormTextarea label="Historial Médico" name="health_record" value={formData.health_record} onChange={handleInputChange} rows={2} />
             </CForm>
           </CModalBody>
           <CModalFooter>
-            <CButton color="success" onClick={saveStudent}>
-              Guardar
-            </CButton>
-            <CButton
-              color="secondary"
-              onClick={() => {
-                setShowModal(false);
-                resetForm();
-              }}
-            >
-              Cancelar
-            </CButton>
+            <CButton color="success" onClick={handleSaveStudent} disabled={isSaving}>Guardar</CButton>
+            <CButton color="secondary" onClick={handleCloseModal}>Cancelar</CButton>
           </CModalFooter>
         </CModal>
       </CCardBody>

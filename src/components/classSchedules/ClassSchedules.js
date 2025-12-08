@@ -37,23 +37,23 @@ const ClassSchedules = () => {
     day_of_week: '',
   });
 
-  // Estados UI
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [filter, setFilter] = useState({ day_of_week: '', classroom: '' });
 
-  // Validaciones
+
   const [errors, setErrors] = useState({});
   const [alertBox, setAlertBox] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Modal Borrado
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [idToDelete, setIdToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const classSchedulesUrl = `${API_URL}/class_schedules`;
+  
   const requiredFields = ['start_date', 'end_date', 'classroom', 'day_of_week', 'start_time', 'end_time'];
   const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
@@ -73,7 +73,7 @@ const ClassSchedules = () => {
     }
   };
 
-  // --- Validaciones ---
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -92,7 +92,6 @@ const ClassSchedules = () => {
       const newErrors = {};
       let isValid = true;
 
-      // 1. Campos requeridos
       requiredFields.forEach(field => {
           if (!formData[field]) {
               newErrors[field] = 'Campo obligatorio.';
@@ -100,7 +99,6 @@ const ClassSchedules = () => {
           }
       });
 
-      // 2. Lógica de Fechas
       if (formData.start_date && formData.end_date) {
           if (new Date(formData.start_date) > new Date(formData.end_date)) {
               newErrors.end_date = 'La fecha fin debe ser posterior al inicio.';
@@ -108,7 +106,6 @@ const ClassSchedules = () => {
           }
       }
 
-      // 3. Lógica de Horas
       if (formData.start_time && formData.end_time) {
           if (formData.start_time >= formData.end_time) {
               newErrors.end_time = 'La hora fin debe ser posterior al inicio.';
@@ -117,13 +114,13 @@ const ClassSchedules = () => {
       }
 
       setErrors(newErrors);
-      if (!isValid) setAlertBox('Por favor, corrija los errores.');
+      if (!isValid) setAlertBox('Por favor, corrija los errores del formulario.');
       return isValid;
   };
 
-  // --- CRUD ---
   const handleSaveSchedule = async () => {
     if (!validateForm()) return;
+
     setIsSaving(true);
     setAlertBox(null);
 
@@ -173,7 +170,7 @@ const ClassSchedules = () => {
     }
   };
 
-  // --- UI Helpers ---
+
   const handleEditSchedule = (schedule) => {
     setSelectedSchedule(schedule);
     setFormData({

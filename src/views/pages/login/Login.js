@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CButton,
@@ -15,20 +15,44 @@ import {
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilLockLocked, cilUser } from '@coreui/icons'
+// CORRECCIÓN: Ruta relativa correcta hacia config.js (4 niveles arriba)
+import API_URL from '../../../../config'; 
 
-const Login = ({ onLogin }) => {
-  const [email, setEmail] = useState(''); 
+const Login = ({ onLoginSuccess }) => {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (email && password) {
-      onLogin({ email, password }); 
-    } else {
-      alert('Please enter a valid email and password.');
+    
+    if (!email || !password) {
+      alert('Por favor, ingrese email y contraseña.');
+      return;
+    }
+
+    try {
+      // CORRECCIÓN: Ruta correcta del backend (incluye /auth)
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Pasar el token al componente padre (App.js) para que gestione el estado
+        if (onLoginSuccess) {
+            onLoginSuccess(data.token);
+        }
+      } else {
+        alert(data.message || 'Error al iniciar sesión');
+      }
+    } catch (error) {
+      console.error('Error de red:', error);
+      alert('Ocurrió un error al intentar conectar con el servidor.');
     }
   };
-
 
   return (
     <div className="bg-body-tertiary min-vh-100 d-flex flex-row align-items-center">
@@ -40,7 +64,7 @@ const Login = ({ onLogin }) => {
                 <CCardBody>
                   <CForm onSubmit={handleLogin}>
                     <h1>Login</h1>
-                    <p className="text-body-secondary">Sign In to your account</p>
+                    <p className="text-body-secondary">Ingresa a tu cuenta</p>
                     <CInputGroup className="mb-3">
                       <CInputGroupText>
                         <CIcon icon={cilUser} />
@@ -48,7 +72,8 @@ const Login = ({ onLogin }) => {
                       <CFormInput 
                         placeholder="Email" 
                         autoComplete="username" 
-                        value={username}
+                        type="email"
+                        value={email}
                         onChange={(e) => setEmail(e.target.value)}
                       />
                     </CInputGroup>
@@ -66,13 +91,13 @@ const Login = ({ onLogin }) => {
                     </CInputGroup>
                     <CRow>
                       <CCol xs={6}>
-                        <CButton color="primary" className="px-4">
+                        <CButton color="primary" type="submit" className="px-4">
                           Login
                         </CButton>
                       </CCol>
                       <CCol xs={6} className="text-right">
                         <CButton color="link" className="px-0">
-                          Forgot password?
+                          ¿Olvidaste tu contraseña?
                         </CButton>
                       </CCol>
                     </CRow>
@@ -82,14 +107,13 @@ const Login = ({ onLogin }) => {
               <CCard className="text-white bg-primary py-5" style={{ width: '44%' }}>
                 <CCardBody className="text-center">
                   <div>
-                    <h2>Sign up</h2>
+                    <h2>Registro</h2>
                     <p>
-                      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
-                      tempor incididunt ut labore et dolore magna aliqua.
+                      Si aún no tienes una cuenta, regístrate para acceder al sistema escolar.
                     </p>
                     <Link to="/register">
                       <CButton color="primary" className="mt-3" active tabIndex={-1}>
-                        Register Now!
+                        ¡Regístrate Ahora!
                       </CButton>
                     </Link>
                   </div>
@@ -102,6 +126,5 @@ const Login = ({ onLogin }) => {
     </div>
   )
 }
-
 
 export default Login

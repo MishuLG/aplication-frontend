@@ -1,86 +1,106 @@
-import React, { Suspense, useEffect, useState } from 'react';
-import { HashRouter, Route, Routes, Navigate } from 'react-router-dom';
-import { CSpinner, useColorModes } from '@coreui/react';
-import './scss/style.scss';
+import React, { Component, Suspense } from 'react'
+import { HashRouter, Route, Routes, Navigate } from 'react-router-dom'
+import './scss/style.scss'
 
+const loading = (
+  <div className="pt-3 text-center">
+    <div className="sk-spinner sk-spinner-pulse"></div>
+  </div>
+)
 
-import { fetchUsers } from './fetch';
+const DefaultLayout = React.lazy(() => import('./layout/DefaultLayout'))
+const Register = React.lazy(() => import('./views/pages/register/Register'))
+const Page404 = React.lazy(() => import('./views/pages/page404/Page404'))
+const Page500 = React.lazy(() => import('./views/pages/page500/Page500'))
 
-// Containers
-const DefaultLayout = React.lazy(() => import('./layout/DefaultLayout'));
+// --- CORRECCIÓN: Importamos TU componente personalizado ---
+const LoginForm = React.lazy(() => import('./components/login/loginForm.jsx')); 
 
-// Pages
-const Register = React.lazy(() => import('./views/pages/register/Register'));
-const Page404 = React.lazy(() => import('./views/pages/page404/Page404'));
-const Page500 = React.lazy(() => import('./views/pages/page500/Page500'));
-const LoginForm = React.lazy(() => import('./components/login/loginForm'));
+class App extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      isAuthenticated: !!localStorage.getItem('token'), // Usamos 'token' estandarizado
+      lastActivity: Date.now()
+    };
+    this.inactivityTimer = null;
+  }
 
-const App = () => {
-  const { isColorModeSet, setColorMode } = useColorModes('coreui-free-react-admin-template-theme');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  componentDidMount() {
+    window.addEventListener('mousemove', this.resetTimer);
+    window.addEventListener('keypress', this.resetTimer);
+    window.addEventListener('click', this.resetTimer);
+    this.inactivityTimer = setInterval(this.checkInactivity, 60000); 
+  }
 
+  componentWillUnmount() {
+    window.removeEventListener('mousemove', this.resetTimer);
+    window.removeEventListener('keypress', this.resetTimer);
+    window.removeEventListener('click', this.resetTimer);
+    clearInterval(this.inactivityTimer);
+  }
 
-  useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      setIsAuthenticated(true);
-    } else {
-      setIsAuthenticated(false);
+  resetTimer = () => {
+    this.setState({ lastActivity: Date.now() });
+  }
+
+  checkInactivity = () => {
+    if (!this.state.isAuthenticated) return;
+    const timeout = 15 * 60 * 1000; // 15 minutos
+    if (Date.now() - this.state.lastActivity > timeout) {
+      this.handleLogout();
+      alert("Su sesión ha expirado por inactividad.");
     }
-  }, []);
+  }
 
-  const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    setIsAuthenticated(false);
-    setCurrentUser(null);  
-  };
+  handleLogin = (token) => {
+    localStorage.setItem('token', token); // Guardamos el token
+    this.setState({ isAuthenticated: true, lastActivity: Date.now() });
+  }
 
-  const handleLoginSuccess = (user) => {
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-  };
+  handleLogout = () => {
+    localStorage.removeItem('token');
+    this.setState({ isAuthenticated: false });
+    window.location.href = '#/login';
+  }
 
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.href.split('?')[1]);
-    const theme = urlParams.get('theme') && urlParams.get('theme').match(/^[A-Za-z0-9\s]+/)[0];
-    if (theme) {
-      setColorMode(theme);
-    }
-
-    if (isColorModeSet()) {
-      return;
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <HashRouter>
-      <Suspense
-        fallback={
-          <div className="pt-3 text-center">
-            <CSpinner color="primary" variant="grow" />
-          </div>
-        }
-      >
-        <Routes>
-          {!isAuthenticated ? (
-            <Route
-              path="/login"
-              element={<LoginForm onLoginSuccess={handleLoginSuccess} />}
+  render() {
+    return (
+      <HashRouter>
+        <Suspense fallback={loading}>
+          <Routes>
+            <Route 
+              exact 
+              path="/login" 
+              name="Login Page" 
+              element={
+                !this.state.isAuthenticated ? (
+                  // Pasamos la función handleLogin como prop
+                  <LoginForm onLoginSuccess={this.handleLogin} />
+                ) : (
+                  <Navigate to="/dashboard" />
+                )
+              } 
             />
-          ) : (
-            <Route
-              path="*"
-              element={<DefaultLayout currentUser={currentUser} onLogout={handleLogout} />}
+            <Route exact path="/register" name="Register Page" element={<Register />} />
+            <Route exact path="/404" name="Page 404" element={<Page404 />} />
+            <Route exact path="/500" name="Page 500" element={<Page500 />} />
+            <Route 
+              path="*" 
+              name="Home" 
+              element={
+                this.state.isAuthenticated ? (
+                  <DefaultLayout onLogout={this.handleLogout} /> 
+                ) : (
+                  <Navigate to="/login" />
+                )
+              } 
             />
-          )}
-          <Route path="/404" name="Page 404" element={<Page404 />} />
-          <Route path="/500" name="Page 500" element={<Page500 />} />
-          <Route path="*" element={<Navigate to="/login" />} />
-        </Routes>
-      </Suspense>
-    </HashRouter>
-  );
-};
+          </Routes>
+        </Suspense>
+      </HashRouter>
+    )
+  }
+}
 
-export default App;
+export default App
