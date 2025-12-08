@@ -18,6 +18,7 @@ import {
   CForm,
   CFormInput,
   CFormSelect,
+  CAlert,
 } from '@coreui/react';
 import API_URL from '../../../config';  
 
@@ -32,12 +33,34 @@ const SchoolYear = () => {
     special_events: '',
     school_year_status: '',
   });
+
+  // Estados de UI principales
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState(null);
   const [filter, setFilter] = useState({ school_grade: '', school_year_status: '' });
+  
+  // Estados para validaciones y alertas
+  const [errors, setErrors] = useState({});
+  const [alertBox, setAlertBox] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Estados para el Modal de Eliminación (igual que en UserCRUD)
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [idToDelete, setIdToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const schoolYearsUrl = `${API_URL}/school_years`;
+
+  const requiredFields = [
+    'school_grade',
+    'start_year',
+    'end_of_year',
+    'number_of_school_days',
+    'scheduled_vacation',
+    'special_events',
+    'school_year_status',
+  ];
 
   useEffect(() => {
     fetchSchoolYears();
@@ -51,19 +74,104 @@ const SchoolYear = () => {
         setSchoolYears(data);
       } else {
         console.error('Received data is not an array:', data);
-        alert('Error: Datos recibidos no son válidos.');
+        setAlertBox('Error: Datos recibidos no son válidos.');
       }
     } catch (error) {
       console.error('Error fetching school years:', error);
-      alert('Ocurrió un error al obtener los años escolares. Por favor, inténtelo de nuevo.');
+      setAlertBox('Ocurrió un error al obtener los años escolares.');
     }
   };
 
-  const handleSaveSchoolYear = async () => {
-    if (!formData.start_year || !formData.end_of_year || !formData.scheduled_vacation || !formData.special_events) {
-      alert("Por favor, completa todos los campos de fecha.");
+  // --- Lógica de Validación ---
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    let newValue = value;
+
+    if (name === 'number_of_school_days') {
+       newValue = value.replace(/[^\d]/g, '');
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: newValue }));
+    setErrors((prev) => ({ ...prev, [name]: '' }));
+    setAlertBox(null);
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    const strValue = String(value || '').trim();
+
+    if (requiredFields.includes(name) && strValue === '') {
+      setErrors((prev) => ({ ...prev, [name]: 'Este campo es obligatorio.' }));
       return;
     }
+
+    if (name === 'number_of_school_days' && strValue) {
+        if (parseInt(strValue, 10) <= 0) {
+            setErrors((prev) => ({ ...prev, [name]: 'Debe ser mayor a 0.' }));
+        }
+    }
+
+    if ((name === 'start_year' || name === 'end_of_year')) {
+        validateDates(name === 'start_year' ? value : formData.start_year, 
+                      name === 'end_of_year' ? value : formData.end_of_year);
+    }
+  };
+
+  const validateDates = (start, end) => {
+      if (start && end) {
+          const startDate = new Date(start);
+          const endDate = new Date(end);
+          if (startDate >= endDate) {
+              setErrors(prev => ({...prev, end_of_year: 'La fecha de fin debe ser posterior al inicio.'}));
+          } else {
+              setErrors(prev => {
+                  const newErrs = {...prev};
+                  if (newErrs.end_of_year === 'La fecha de fin debe ser posterior al inicio.') {
+                      delete newErrs.end_of_year;
+                  }
+                  return newErrs;
+              });
+          }
+      }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    requiredFields.forEach((field) => {
+        if (!formData[field] || String(formData[field]).trim() === '') {
+            newErrors[field] = 'Este campo es obligatorio.';
+        }
+    });
+
+    if (formData.start_year && formData.end_of_year) {
+        if (new Date(formData.start_year) >= new Date(formData.end_of_year)) {
+            newErrors.end_of_year = 'La fecha de fin debe ser posterior al inicio.';
+        }
+    }
+
+    if (formData.number_of_school_days && parseInt(formData.number_of_school_days, 10) <= 0) {
+        newErrors.number_of_school_days = 'Debe ser un número positivo.';
+    }
+
+    setErrors(newErrors);
+    const isValid = Object.keys(newErrors).length === 0;
+    
+    if (!isValid) {
+        setAlertBox('Por favor, corrija los errores antes de guardar.');
+    }
+    
+    return isValid;
+  };
+
+  // --- CRUD Operations ---
+
+  const handleSaveSchoolYear = async () => {
+    if (!validateForm()) return;
+    
+    setIsSaving(true);
+    setAlertBox(null);
 
     const formattedData = {
       ...formData,
@@ -71,6 +179,7 @@ const SchoolYear = () => {
       end_of_year: new Date(formData.end_of_year).toISOString().split('T')[0],
       scheduled_vacation: new Date(formData.scheduled_vacation).toISOString().split('T')[0],
       special_events: new Date(formData.special_events).toISOString().split('T')[0],
+      number_of_school_days: parseInt(formData.number_of_school_days, 10)
     };
 
     try {
@@ -84,17 +193,82 @@ const SchoolYear = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Server response error');
+        let errorText = `Error ${response.status}`;
+        let errorData = null;
+        try {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                errorData = await response.json();
+                if (errorData.errors) {
+                    if (Array.isArray(errorData.errors)) {
+                        const mapped = {};
+                        errorData.errors.forEach(err => mapped[err.field] = err.message);
+                        setErrors(prev => ({ ...prev, ...mapped }));
+                    } else {
+                        setErrors(prev => ({ ...prev, ...errorData.errors }));
+                    }
+                }
+                if (errorData.message) errorText = errorData.message;
+            } else {
+                errorText = await response.text();
+            }
+        } catch (e) { console.error("Error parsing response", e); }
+        
+        setAlertBox(errorText || 'Error del servidor al guardar.');
+        setIsSaving(false);
+        return;
       }
 
-      fetchSchoolYears();
+      await fetchSchoolYears();
       setShowModal(false);
       resetForm();
     } catch (error) {
       console.error('Error saving school year:', error);
-      alert('Ocurrió un error al guardar el año escolar. Por favor, inténtelo de nuevo.');
+      setAlertBox('Ocurrió un error de red al guardar. Por favor, inténtelo de nuevo.');
+    } finally {
+        setIsSaving(false);
     }
   };
+
+  // --- Lógica del Modal de Eliminación ---
+
+  const handleDeleteClick = (id) => {
+    setIdToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setIdToDelete(null);
+  };
+
+  const confirmDelete = async () => {
+    if (idToDelete) {
+      await handleDeleteSchoolYear(idToDelete);
+    }
+    setShowDeleteModal(false);
+    setIdToDelete(null);
+  };
+
+  const handleDeleteSchoolYear = async (id) => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`${schoolYearsUrl}/${id}`, { method: 'DELETE' });
+
+      if (!response.ok) {
+        throw new Error('Server response error');
+      }
+
+      await fetchSchoolYears();
+    } catch (error) {
+      console.error('Error deleting school year:', error);
+      setAlertBox('Ocurrió un error al eliminar el año escolar.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // --- Helpers y Renderizado ---
 
   const handleEditSchoolYear = (schoolYear) => {
     setSelectedSchoolYear(schoolYear);
@@ -108,22 +282,9 @@ const SchoolYear = () => {
       school_year_status: schoolYear.school_year_status,
     });
     setEditMode(true);
+    setErrors({});
+    setAlertBox(null);
     setShowModal(true);
-  };
-
-  const handleDeleteSchoolYear = async (id) => {
-    try {
-      const response = await fetch(`${schoolYearsUrl}/${id}`, { method: 'DELETE' });
-
-      if (!response.ok) {
-        throw new Error('Server response error');
-      }
-
-      fetchSchoolYears();
-    } catch (error) {
-      console.error('Error deleting school year:', error);
-      alert('Ocurrió un error al eliminar el año escolar. Por favor, inténtelo de nuevo.');
-    }
   };
 
   const handleFilterChange = (e) => {
@@ -142,6 +303,8 @@ const SchoolYear = () => {
     });
     setEditMode(false);
     setSelectedSchoolYear(null);
+    setErrors({});
+    setAlertBox(null);
   };
 
   const handleCloseModal = () => {
@@ -149,40 +312,46 @@ const SchoolYear = () => {
     resetForm();
   };
 
-const filteredSchoolYears = schoolYears.filter((schoolYear) => {
-    // Manejo seguro del Grado Escolar (siempre debe ser string para toLowerCase)
+  const renderErrorText = (field) => {
+    if (!errors[field]) return null;
+    return (
+      <div style={{ color: '#dc3545', fontSize: '0.875em', marginTop: '0.25rem' }}>
+        {errors[field]}
+      </div>
+    );
+  };
+
+  const filteredSchoolYears = schoolYears.filter((schoolYear) => {
     const gradeMatch = (schoolYear.school_grade || '')
         .toLowerCase()
         .includes(filter.school_grade.toLowerCase());
 
-    // 1. Obtener el estado del año escolar de forma segura.
     let statusString = '';
     const statusValue = schoolYear.school_year_status;
 
-    // Si el valor es booleano (true/false, como viene de la DB), convertirlo a 'active'/'inactive'.
     if (typeof statusValue === 'boolean') {
         statusString = statusValue ? 'active' : 'inactive';
     } else if (typeof statusValue === 'string') {
-        // Si ya es un string (quizás de una inserción anterior), usarlo.
         statusString = statusValue.toLowerCase();
     } 
 
-    // 2. Realizar el filtrado por estado.
     const filterStatus = filter.school_year_status.toLowerCase();
     const statusMatch = filterStatus === '' || statusString.includes(filterStatus);
 
     return gradeMatch && statusMatch;
-});
+  });
 
   return (
     <CCard>
       <CCardHeader>
         <h5>Años Escolares</h5>
-        <CButton color="success" onClick={() => setShowModal(true)}>
+        <CButton color="success" onClick={() => { resetForm(); setShowModal(true); }}>
           Agregar Año Escolar
         </CButton>
       </CCardHeader>
       <CCardBody>
+        {alertBox && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
+        
         <div className="mb-3">
           <CFormInput
             placeholder="Filtrar por grado escolar"
@@ -198,16 +367,17 @@ const filteredSchoolYears = schoolYears.filter((schoolYear) => {
             onChange={handleFilterChange}
           />
         </div>
+        
         <CTable bordered hover responsive>
           <CTableHead>
             <CTableRow>
-              <CTableHeaderCell>ID Año Escolar</CTableHeaderCell>
-              <CTableHeaderCell>Grado Escolar</CTableHeaderCell>
-              <CTableHeaderCell>Año de Inicio</CTableHeaderCell>
-              <CTableHeaderCell>Año de Fin</CTableHeaderCell>
-              <CTableHeaderCell>Días Escolares</CTableHeaderCell>
-              <CTableHeaderCell>Vacaciones Programadas</CTableHeaderCell>
-              <CTableHeaderCell>Eventos Especiales</CTableHeaderCell>
+              <CTableHeaderCell>ID</CTableHeaderCell>
+              <CTableHeaderCell>Grado</CTableHeaderCell>
+              <CTableHeaderCell>Inicio</CTableHeaderCell>
+              <CTableHeaderCell>Fin</CTableHeaderCell>
+              <CTableHeaderCell>Días</CTableHeaderCell>
+              <CTableHeaderCell>Vacaciones</CTableHeaderCell>
+              <CTableHeaderCell>Eventos</CTableHeaderCell>
               <CTableHeaderCell>Estado</CTableHeaderCell>
               <CTableHeaderCell>Acciones</CTableHeaderCell>
             </CTableRow>
@@ -227,7 +397,7 @@ const filteredSchoolYears = schoolYears.filter((schoolYear) => {
                   <CButton color="warning" size="sm" onClick={() => handleEditSchoolYear(schoolYear)}>
                     Editar
                   </CButton>{' '}
-                  <CButton color="danger" size="sm" onClick={() => handleDeleteSchoolYear(schoolYear.id_school_year)}>
+                  <CButton color="danger" size="sm" onClick={() => handleDeleteClick(schoolYear.id_school_year)}>
                     Eliminar
                   </CButton>
                 </CTableDataCell>
@@ -236,28 +406,129 @@ const filteredSchoolYears = schoolYears.filter((schoolYear) => {
           </CTableBody>
         </CTable>
 
-        <CModal visible={showModal} onClose={handleCloseModal}>
+        {/* --- MODAL DE ELIMINACIÓN (Estilo UserCRUD) --- */}
+        <CModal visible={showDeleteModal} onClose={handleCancelDelete} backdrop="static">
+          <CModalHeader>
+            <CModalTitle>Confirmar Eliminación</CModalTitle>
+          </CModalHeader>
+          <CModalBody>¿Está seguro de que desea eliminar este año escolar? Esta acción no se puede deshacer.</CModalBody>
+          <CModalFooter>
+            <CButton color="danger" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? 'Eliminando...' : 'Eliminar'}
+            </CButton>
+            <CButton color="secondary" onClick={handleCancelDelete} disabled={isDeleting}>
+              Cancelar
+            </CButton>
+          </CModalFooter>
+        </CModal>
+
+        {/* --- MODAL DE CREACIÓN / EDICIÓN --- */}
+        <CModal visible={showModal} onClose={handleCloseModal} backdrop="static">
           <CModalHeader>
             <CModalTitle>{editMode ? 'Editar Año Escolar' : 'Agregar Año Escolar'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
             <CForm>
-              <CFormInput type="text" label="Grado Escolar" value={formData.school_grade} onChange={(e) => setFormData({ ...formData, school_grade: e.target.value })} required />
-              <CFormInput type="date" label="Año de Inicio" value={formData.start_year} onChange={(e) => setFormData({ ...formData, start_year: e.target.value })} required />
-              <CFormInput type="date" label="Año de Fin" value={formData.end_of_year} onChange={(e) => setFormData({ ...formData, end_of_year: e.target.value })} required />
-              <CFormInput type="number" label="Días Escolares" value={formData.number_of_school_days} onChange={(e) => setFormData({ ...formData, number_of_school_days: e.target.value })} required />
-              <CFormSelect label="Estado" value={formData.school_year_status} onChange={(e) => setFormData({ ...formData, school_year_status: e.target.value })} required>
-                <option value="">Seleccionar Estado</option>
-                <option value="active">Activo</option>
-                <option value="inactive">Inactivo</option>
-              </CFormSelect>
+              <div className="mb-3">
+                  <CFormInput 
+                    type="text" 
+                    label="Grado Escolar" 
+                    name="school_grade"
+                    value={formData.school_grade} 
+                    onChange={handleInputChange} 
+                    onBlur={handleBlur}
+                    invalid={!!errors.school_grade}
+                  />
+                  {renderErrorText('school_grade')}
+              </div>
+
+              <div className="mb-3">
+                  <CFormInput 
+                    type="date" 
+                    label="Año de Inicio" 
+                    name="start_year"
+                    value={formData.start_year} 
+                    onChange={handleInputChange} 
+                    onBlur={handleBlur}
+                    invalid={!!errors.start_year}
+                  />
+                  {renderErrorText('start_year')}
+              </div>
+
+              <div className="mb-3">
+                  <CFormInput 
+                    type="date" 
+                    label="Año de Fin" 
+                    name="end_of_year"
+                    value={formData.end_of_year} 
+                    onChange={handleInputChange} 
+                    onBlur={handleBlur}
+                    invalid={!!errors.end_of_year}
+                  />
+                  {renderErrorText('end_of_year')}
+              </div>
+
+              <div className="mb-3">
+                  <CFormInput 
+                    type="number" 
+                    label="Días Escolares" 
+                    name="number_of_school_days"
+                    value={formData.number_of_school_days} 
+                    onChange={handleInputChange} 
+                    onBlur={handleBlur}
+                    invalid={!!errors.number_of_school_days}
+                  />
+                  {renderErrorText('number_of_school_days')}
+              </div>
+
+              <div className="mb-3">
+                  <CFormInput 
+                    type="date" 
+                    label="Vacaciones Programadas" 
+                    name="scheduled_vacation"
+                    value={formData.scheduled_vacation} 
+                    onChange={handleInputChange} 
+                    onBlur={handleBlur}
+                    invalid={!!errors.scheduled_vacation}
+                  />
+                  {renderErrorText('scheduled_vacation')}
+              </div>
+
+              <div className="mb-3">
+                  <CFormInput 
+                    type="date" 
+                    label="Eventos Especiales" 
+                    name="special_events"
+                    value={formData.special_events} 
+                    onChange={handleInputChange} 
+                    onBlur={handleBlur}
+                    invalid={!!errors.special_events}
+                  />
+                  {renderErrorText('special_events')}
+              </div>
+
+              <div className="mb-3">
+                  <CFormSelect 
+                    label="Estado" 
+                    name="school_year_status"
+                    value={formData.school_year_status} 
+                    onChange={handleInputChange} 
+                    onBlur={handleBlur}
+                    invalid={!!errors.school_year_status}
+                  >
+                    <option value="">Seleccionar Estado</option>
+                    <option value="active">Activo</option>
+                    <option value="inactive">Inactivo</option>
+                  </CFormSelect>
+                  {renderErrorText('school_year_status')}
+              </div>
             </CForm>
           </CModalBody>
           <CModalFooter>
-            <CButton color="success" onClick={handleSaveSchoolYear}>
-              Guardar
+            <CButton color="success" onClick={handleSaveSchoolYear} disabled={isSaving}>
+              {isSaving ? 'Guardando...' : 'Guardar'}
             </CButton>
-            <CButton color="secondary" onClick={handleCloseModal}>
+            <CButton color="secondary" onClick={handleCloseModal} disabled={isSaving}>
               Cancelar
             </CButton>
           </CModalFooter>
