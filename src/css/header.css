@@ -1,64 +1,76 @@
+
 .header-container {
-    background-image: linear-gradient(
-        -45deg,
-        rgba(50, 31, 219, 0.4),     
-        rgba(111, 66, 193, 0.4),    
-        rgba(13, 202, 240, 0.4),    
-        rgba(0, 0, 21, 0.9)         
-    );
-
-    background-size: 400% 400%; 
-    
-    animation: auroraFade 20s ease infinite;
-
-    background-color: transparent !important; 
-    border-bottom: none !important; 
+  background-image: linear-gradient(
+    -45deg,
+    rgba(50, 31, 219, 0.4),
+    rgba(111, 66, 193, 0.4),
+    rgba(13, 202, 240, 0.4),
+    rgba(0, 0, 21, 0.9)
+  );
+  background-size: 400% 400%;
+  animation: auroraFade 20s ease infinite;
+  background-color: transparent !important;
+  border-bottom: none !important;
 }
+
 
 .header {
-    background-color: transparent !important;
-    box-shadow: none !important; 
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border-bottom: 4px solid #1a67cca6;
+  background-color: #1a67cca6;
+  text-decoration: none;
+  
 }
 
-    border-bottom: 4px solid #1a67cca6; 
-    background-color: #1a67cca6;
-    text-decoration: none;
+
+@keyframes auroraFade {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 
 .header-profile {
-    padding-top: 0px;
-    background-color: #1a67cca6;
-    font-weight: bold; 
-    text-decoration: none;
-    color: white;
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1); 
+  padding-top: 0;
+  background-color: #1a67cca6;
+  font-weight: bold;
+  text-decoration: none;
+  color: white;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 
 .header-breadcrumb {
-    background-color: #1a67cca6;
+  background-color: #1a67cca6;
 }
 
 
 .simplebar {
-    background-color: #11233b;
-    border-right: 1px solid #ccc; 
+  background-color: #11233b;
+  border-right: 1px solid #ccc;
 }
 
 
 .d-flex.align-items-center {
-    display: flex;
-    align-items: center;
-    justify-content: center; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+
 .nav-item {
-    display: flex;
-    align-items: center; 
+  display: flex;
+  align-items: center;
 }
 
 
 .nav-item .vr {
-    height: 100%; 
+  height: 100%;
 }
