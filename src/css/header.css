@@ -1,5 +1,4 @@
 .header-container {
-<<<<<<< HEAD
     background-image: linear-gradient(
         -45deg,
         rgba(50, 31, 219, 0.4),     
@@ -21,7 +20,6 @@
     box-shadow: none !important; 
 }
 
-=======
     border-bottom: 4px solid #1a67cca6; 
     background-color: #1a67cca6;
     text-decoration: none;
@@ -43,7 +41,6 @@
 }
 
 
->>>>>>> ea4f8793337231f4ec4c6057816824d8d48f5e85
 .simplebar {
     background-color: #11233b;
     border-right: 1px solid #ccc; 
