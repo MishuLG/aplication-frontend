@@ -37,29 +37,29 @@ const _nav = [
   },
   {
     component: CNavItem,
-    name: 'users',
+    name: 'ususarios',
     to: '/users',
     icon: <CIcon icon={cilUser} customClassName="nav-icon" />,
   },
   {
     component: CNavTitle,
-    name: 'tools',
+    name: 'herramientas',
   },
  
   {
     component: CNavGroup,
-    name: 'Registration',
+    name: 'Registro',
     to: '/',
     icon: <CIcon icon={cilUserFollow} customClassName="nav-icon" />,
     items: [
       {
         component: CNavItem,
-        name: 'Students',
+        name: 'Estudiantes',
         to: '/students',
       },
       {
         component: CNavItem,
-        name: 'Tutors',
+        name: 'Tutores',
         to: '/tutors',
       },
     ],
@@ -67,40 +67,40 @@ const _nav = [
 
   {
     component: CNavGroup,
-    name: 'Academic',
+    name: 'Academico',
     to: '/buttons',
     icon: <CIcon icon={cilPencil} customClassName="nav-icon" />,
     items: [
       {
         component: CNavItem,
-        name: 'sections',
+        name: 'secciones',
         to: '/sections',
       },
       {
         component: CNavItem,
-        name: 'subjects',
+        name: 'Materias',
         to: '/subjects',
       },
       {
         component: CNavItem,
-        name: 'subjects taken',
+        name: 'Materias Inscritas',
         to: '/subjects_taken',
       },
       {
         component: CNavItem,
-        name: 'School year',
+        name: 'Año Escolar',
         to: '/school_year',
       },
       {
         component: CNavItem,
-        name: 'Class Schedules',
+        name: 'Horario de Clases',
         to: '/class_schedules',
       },
     ],
   },
   {
     component: CNavItem,
-    name: 'Attendance',
+    name: 'Asistencias',
     to: '/attendance',
     icon: <CIcon icon={cilMoodVeryGood} customClassName="nav-icon" />
   },

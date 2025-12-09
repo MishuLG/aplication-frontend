@@ -22,7 +22,21 @@ import {
   CAlert,
   CRow,
   CCol,
+  CInputGroup,
+  CInputGroupText,
+  CBadge
 } from '@coreui/react';
+import CIcon from '@coreui/icons-react';
+import { 
+  cilPlus, 
+  cilPencil, 
+  cilTrash, 
+  cilSearch, 
+  cilRoom, 
+  cilCalendar, 
+  cilClock,
+  cilWarning
+} from '@coreui/icons';
 import API_URL from '../../../config';
 
 const ClassSchedules = () => {
@@ -37,17 +51,18 @@ const ClassSchedules = () => {
     day_of_week: '',
   });
 
+  // Estados UI
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [filter, setFilter] = useState({ day_of_week: '', classroom: '' });
 
-
+  // Estados Validación
   const [errors, setErrors] = useState({});
   const [alertBox, setAlertBox] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-
+  // Estados Borrado
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [idToDelete, setIdToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -61,18 +76,35 @@ const ClassSchedules = () => {
     fetchClassSchedules();
   }, []);
 
+  // --- LÓGICA DE DATOS (Fetch Seguro) ---
+
+  const authenticatedFetch = async (url, options = {}) => {
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    
+    const response = await fetch(url, { ...options, headers });
+    
+    if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('token');
+        window.location.href = '#/login';
+        throw new Error('Sesión expirada.');
+    }
+    return response;
+  };
+
   const fetchClassSchedules = async () => {
     try {
-      const response = await fetch(classSchedulesUrl);
-      if (!response.ok) throw new Error('Error de red');
+      const response = await authenticatedFetch(classSchedulesUrl);
       const data = await response.json();
       setClassSchedules(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
-      setAlertBox('Error al cargar horarios.');
+      if (error.message !== 'Sesión expirada.') setAlertBox('Error al cargar horarios.');
     }
   };
 
+  // --- VALIDACIONES ---
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -118,8 +150,31 @@ const ClassSchedules = () => {
       return isValid;
   };
 
+  // --- VALIDACIÓN DE DUPLICIDAD ---
+  const checkDuplicates = () => {
+      const { classroom, day_of_week, start_time } = formData;
+      const normalize = (str) => String(str).toLowerCase().trim();
+
+      const duplicate = classSchedules.find(s => {
+          if (editMode && selectedSchedule && s.id_class_schedules === selectedSchedule.id_class_schedules) return false;
+          
+          return normalize(s.classroom) === normalize(classroom) &&
+                 normalize(s.day_of_week) === normalize(day_of_week) &&
+                 s.start_time === start_time;
+      });
+
+      if (duplicate) {
+          setAlertBox(`Error: El aula ${classroom} ya está ocupada el ${day_of_week} a las ${start_time}.`);
+          return false;
+      }
+      return true;
+  };
+
+  // --- CRUD ---
+
   const handleSaveSchedule = async () => {
     if (!validateForm()) return;
+    if (!checkDuplicates()) return;
 
     setIsSaving(true);
     setAlertBox(null);
@@ -128,9 +183,8 @@ const ClassSchedules = () => {
       const method = editMode ? 'PUT' : 'POST';
       const url = editMode ? `${classSchedulesUrl}/${selectedSchedule.id_class_schedules}` : classSchedulesUrl;
 
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
@@ -158,7 +212,7 @@ const ClassSchedules = () => {
     if (!idToDelete) return;
     setIsDeleting(true);
     try {
-        const res = await fetch(`${classSchedulesUrl}/${idToDelete}`, { method: 'DELETE' });
+        const res = await authenticatedFetch(`${classSchedulesUrl}/${idToDelete}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Error al eliminar.');
         await fetchClassSchedules();
         setShowDeleteModal(false);
@@ -170,6 +224,7 @@ const ClassSchedules = () => {
     }
   };
 
+  // --- UI Helpers ---
 
   const handleEditSchedule = (schedule) => {
     setSelectedSchedule(schedule);
@@ -200,7 +255,7 @@ const ClassSchedules = () => {
     setAlertBox(null);
   };
 
-  const renderError = (field) => errors[field] ? <div style={{color: '#dc3545', fontSize: '0.8rem'}}>{errors[field]}</div> : null;
+  const renderError = (field) => errors[field] ? <div className="text-danger small mt-1">{errors[field]}</div> : null;
 
   const filteredSchedules = classSchedules.filter(s => {
       const dayMatch = (s.day_of_week || '').toLowerCase().includes(filter.day_of_week.toLowerCase());
@@ -208,120 +263,210 @@ const ClassSchedules = () => {
       return dayMatch && roomMatch;
   });
 
+  // KPIs
+  const totalSchedules = classSchedules.length;
+  const uniqueClassrooms = new Set(classSchedules.map(s => s.classroom)).size;
+
   return (
-    <CCard>
-      <CCardHeader>
-        <h5>Horarios de Clase</h5>
-        <CButton color="success" onClick={() => { handleCloseModal(); setShowModal(true); }}>Agregar Horario</CButton>
-      </CCardHeader>
-      <CCardBody>
-        {alertBox && !showModal && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
+    <div className="container-fluid mt-4">
+      
+      {/* --- KPIs --- */}
+      <CRow className="mb-4">
+          <CCol sm={6}>
+              <CCard className="border-start-4 border-start-primary shadow-sm h-100">
+                  <CCardBody className="d-flex justify-content-between align-items-center p-3">
+                      <div>
+                          <div className="text-medium-emphasis small text-uppercase fw-bold">Total Horarios</div>
+                          <div className="fs-4 fw-semibold text-body">{totalSchedules}</div>
+                      </div>
+                      <CIcon icon={cilClock} size="xl" className="text-primary" />
+                  </CCardBody>
+              </CCard>
+          </CCol>
+          <CCol sm={6}>
+              <CCard className="border-start-4 border-start-warning shadow-sm h-100">
+                  <CCardBody className="d-flex justify-content-between align-items-center p-3">
+                      <div>
+                          <div className="text-medium-emphasis small text-uppercase fw-bold">Aulas Ocupadas</div>
+                          <div className="fs-4 fw-semibold text-body">{uniqueClassrooms}</div>
+                      </div>
+                      <CIcon icon={cilRoom} size="xl" className="text-warning" />
+                  </CCardBody>
+              </CCard>
+          </CCol>
+      </CRow>
 
-        <div className="mb-3 d-flex gap-2">
-            <CFormSelect 
-                value={filter.day_of_week} 
-                onChange={(e) => setFilter({...filter, day_of_week: e.target.value})}
-                style={{maxWidth: '200px'}}
-            >
-                <option value="">Filtrar Día...</option>
-                {daysOfWeek.map(d => <option key={d} value={d}>{d}</option>)}
-            </CFormSelect>
-            <CFormInput 
-                placeholder="Filtrar por Aula" 
-                value={filter.classroom} 
-                onChange={(e) => setFilter({...filter, classroom: e.target.value})}
-                style={{maxWidth: '200px'}}
-            />
-        </div>
+      {/* --- SECCIÓN PRINCIPAL --- */}
+      <CCard className="shadow-sm border-0">
+        <CCardHeader className="bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
+            <h5 className="mb-0 text-body">Gestión de Horarios</h5>
+            <CButton color="success" onClick={() => { handleCloseModal(); setShowModal(true); }} className="d-flex align-items-center text-white">
+              <CIcon icon={cilPlus} className="me-2" /> Agregar Horario
+            </CButton>
+        </CCardHeader>
 
-        <CTable bordered hover responsive>
-          <CTableHead>
-            <CTableRow>
-              <CTableHeaderCell>Aula</CTableHeaderCell>
-              <CTableHeaderCell>Día</CTableHeaderCell>
-              <CTableHeaderCell>Horario</CTableHeaderCell>
-              <CTableHeaderCell>Vigencia</CTableHeaderCell>
-              <CTableHeaderCell>Eventos</CTableHeaderCell>
-              <CTableHeaderCell>Acciones</CTableHeaderCell>
-            </CTableRow>
-          </CTableHead>
-          <CTableBody>
-            {filteredSchedules.map((schedule) => (
-              <CTableRow key={schedule.id_class_schedules}>
-                <CTableDataCell>{schedule.classroom}</CTableDataCell>
-                <CTableDataCell>{schedule.day_of_week}</CTableDataCell>
-                <CTableDataCell>{schedule.start_time} - {schedule.end_time}</CTableDataCell>
-                <CTableDataCell>{schedule.start_date} al {schedule.end_date}</CTableDataCell>
-                <CTableDataCell>{schedule.unforeseen_events}</CTableDataCell>
-                <CTableDataCell>
-                  <CButton color="warning" size="sm" onClick={() => handleEditSchedule(schedule)} className="me-2">Editar</CButton>
-                  <CButton color="danger" size="sm" onClick={() => handleDeleteClick(schedule.id_class_schedules)}>Eliminar</CButton>
-                </CTableDataCell>
-              </CTableRow>
-            ))}
-             {filteredSchedules.length === 0 && <CTableRow><CTableDataCell colSpan="6" className="text-center">No hay registros.</CTableDataCell></CTableRow>}
-          </CTableBody>
-        </CTable>
+        <CCardBody>
+            {alertBox && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
 
-        {/* Modal Delete */}
-        <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} backdrop="static">
-            <CModalHeader><CModalTitle>Confirmar</CModalTitle></CModalHeader>
-            <CModalBody>¿Eliminar este horario?</CModalBody>
-            <CModalFooter>
-                <CButton color="danger" onClick={confirmDelete} disabled={isDeleting}>Eliminar</CButton>
-                <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</CButton>
-            </CModalFooter>
-        </CModal>
-
-        {/* Modal Form */}
-        <CModal visible={showModal} onClose={handleCloseModal} backdrop="static" size="lg">
-          <CModalHeader><CModalTitle>{editMode ? 'Editar' : 'Crear'} Horario</CModalTitle></CModalHeader>
-          <CModalBody>
-            {alertBox && <CAlert color="danger">{alertBox}</CAlert>}
-            <CForm>
-                <CRow className="mb-3">
-                    <CCol md={6}>
-                        <CFormInput type="text" label="Aula *" name="classroom" value={formData.classroom} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.classroom} />
-                        {renderError('classroom')}
-                    </CCol>
-                    <CCol md={6}>
-                        <CFormSelect label="Día *" name="day_of_week" value={formData.day_of_week} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.day_of_week}>
-                            <option value="">Seleccione...</option>
+            {/* Filtros */}
+            <CRow className="mb-4 g-2">
+                <CCol md={6}>
+                    <CInputGroup>
+                        <CInputGroupText className="bg-body border-end-0 text-medium-emphasis">
+                            <CIcon icon={cilCalendar} />
+                        </CInputGroupText>
+                        <CFormSelect 
+                            className="bg-body border-start-0" 
+                            value={filter.day_of_week} 
+                            onChange={(e) => setFilter({...filter, day_of_week: e.target.value})}
+                        >
+                            <option value="">Todos los Días</option>
                             {daysOfWeek.map(d => <option key={d} value={d}>{d}</option>)}
                         </CFormSelect>
-                        {renderError('day_of_week')}
-                    </CCol>
-                </CRow>
-                <CRow className="mb-3">
-                    <CCol md={6}>
-                        <CFormInput type="date" label="Inicio Vigencia *" name="start_date" value={formData.start_date} onChange={handleInputChange} invalid={!!errors.start_date} />
-                        {renderError('start_date')}
-                    </CCol>
-                    <CCol md={6}>
-                        <CFormInput type="date" label="Fin Vigencia *" name="end_date" value={formData.end_date} onChange={handleInputChange} invalid={!!errors.end_date} />
-                        {renderError('end_date')}
-                    </CCol>
-                </CRow>
-                <CRow className="mb-3">
-                    <CCol md={6}>
-                        <CFormInput type="time" label="Hora Inicio *" name="start_time" value={formData.start_time} onChange={handleInputChange} invalid={!!errors.start_time} />
-                        {renderError('start_time')}
-                    </CCol>
-                    <CCol md={6}>
-                        <CFormInput type="time" label="Hora Fin *" name="end_time" value={formData.end_time} onChange={handleInputChange} invalid={!!errors.end_time} />
-                        {renderError('end_time')}
-                    </CCol>
-                </CRow>
-                <CFormTextarea label="Eventos Imprevistos" name="unforeseen_events" value={formData.unforeseen_events} onChange={handleInputChange} rows="3" />
-            </CForm>
-          </CModalBody>
-          <CModalFooter>
-            <CButton color="success" onClick={handleSaveSchedule} disabled={isSaving}>Guardar</CButton>
-            <CButton color="secondary" onClick={handleCloseModal}>Cancelar</CButton>
-          </CModalFooter>
-        </CModal>
-      </CCardBody>
-    </CCard>
+                    </CInputGroup>
+                </CCol>
+                <CCol md={6}>
+                    <CInputGroup>
+                        <CInputGroupText className="bg-body border-end-0 text-medium-emphasis">
+                            <CIcon icon={cilSearch} />
+                        </CInputGroupText>
+                        <CFormInput 
+                            className="bg-body border-start-0" 
+                            placeholder="Buscar por Aula..." 
+                            value={filter.classroom} 
+                            onChange={(e) => setFilter({...filter, classroom: e.target.value})}
+                        />
+                    </CInputGroup>
+                </CCol>
+            </CRow>
+
+            {/* Tabla */}
+            <CTable align="middle" className="mb-0 border" hover responsive striped>
+              <CTableHead>
+                <CTableRow>
+                  <CTableHeaderCell className="text-center" style={{width: '60px'}}><CIcon icon={cilRoom} /></CTableHeaderCell>
+                  <CTableHeaderCell>Aula</CTableHeaderCell>
+                  <CTableHeaderCell>Día</CTableHeaderCell>
+                  <CTableHeaderCell>Horario</CTableHeaderCell>
+                  <CTableHeaderCell>Vigencia</CTableHeaderCell>
+                  <CTableHeaderCell>Imprevistos</CTableHeaderCell>
+                  <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
+                </CTableRow>
+              </CTableHead>
+              <CTableBody>
+                {filteredSchedules.map((schedule) => (
+                  <CTableRow key={schedule.id_class_schedules}>
+                    <CTableDataCell className="text-center">
+                        <CBadge color="info" shape="rounded-pill">
+                            {schedule.id_class_schedules}
+                        </CBadge>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                        <div className="fw-bold text-body">{schedule.classroom}</div>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                        <CBadge color="secondary">{schedule.day_of_week}</CBadge>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                        <div className="d-flex align-items-center text-body small">
+                            <CIcon icon={cilClock} className="me-2 text-medium-emphasis"/>
+                            {schedule.start_time} - {schedule.end_time}
+                        </div>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                        <div className="small text-medium-emphasis">
+                            {schedule.start_date} <br/> al {schedule.end_date}
+                        </div>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                        <div className="small text-medium-emphasis text-truncate" style={{maxWidth: '150px'}}>
+                            {schedule.unforeseen_events || '-'}
+                        </div>
+                    </CTableDataCell>
+                    <CTableDataCell className="text-end">
+                      <CButton color="light" size="sm" variant="ghost" className="me-2" onClick={() => handleEditSchedule(schedule)}>
+                          <CIcon icon={cilPencil} className="text-warning"/>
+                      </CButton>
+                      <CButton color="light" size="sm" variant="ghost" onClick={() => handleDeleteClick(schedule.id_class_schedules)}>
+                          <CIcon icon={cilTrash} className="text-danger"/>
+                      </CButton>
+                    </CTableDataCell>
+                  </CTableRow>
+                ))}
+                {filteredSchedules.length === 0 && (
+                    <CTableRow>
+                        <CTableDataCell colSpan="7" className="text-center py-4 text-medium-emphasis">
+                            No hay horarios registrados.
+                        </CTableDataCell>
+                    </CTableRow>
+                )}
+              </CTableBody>
+            </CTable>
+        </CCardBody>
+      </CCard>
+
+      {/* --- MODALES --- */}
+
+      <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} backdrop="static" alignment="center">
+        <CModalHeader>
+          <CModalTitle>Confirmar Eliminación</CModalTitle>
+        </CModalHeader>
+        <CModalBody>¿Eliminar este horario? Esta acción no se puede deshacer.</CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" variant="ghost" onClick={() => setShowDeleteModal(false)}>Cancelar</CButton>
+          <CButton color="danger" onClick={confirmDelete} disabled={isDeleting}>Eliminar</CButton>
+        </CModalFooter>
+      </CModal>
+
+      <CModal visible={showModal} onClose={handleCloseModal} backdrop="static" size="lg">
+        <CModalHeader>
+          <CModalTitle>{editMode ? 'Editar Horario' : 'Crear Horario'}</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          {alertBox && <CAlert color="danger">{alertBox}</CAlert>}
+          <CForm>
+              <CRow className="mb-3">
+                  <CCol md={6}>
+                      <CFormInput type="text" label="Aula *" name="classroom" value={formData.classroom} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.classroom} />
+                      {renderError('classroom')}
+                  </CCol>
+                  <CCol md={6}>
+                      <CFormSelect label="Día *" name="day_of_week" value={formData.day_of_week} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.day_of_week}>
+                          <option value="">Seleccione...</option>
+                          {daysOfWeek.map(d => <option key={d} value={d}>{d}</option>)}
+                      </CFormSelect>
+                      {renderError('day_of_week')}
+                  </CCol>
+              </CRow>
+              <CRow className="mb-3">
+                  <CCol md={6}>
+                      <CFormInput type="date" label="Inicio Vigencia *" name="start_date" value={formData.start_date} onChange={handleInputChange} invalid={!!errors.start_date} />
+                      {renderError('start_date')}
+                  </CCol>
+                  <CCol md={6}>
+                      <CFormInput type="date" label="Fin Vigencia *" name="end_date" value={formData.end_date} onChange={handleInputChange} invalid={!!errors.end_date} />
+                      {renderError('end_date')}
+                  </CCol>
+              </CRow>
+              <CRow className="mb-3">
+                  <CCol md={6}>
+                      <CFormInput type="time" label="Hora Inicio *" name="start_time" value={formData.start_time} onChange={handleInputChange} invalid={!!errors.start_time} />
+                      {renderError('start_time')}
+                  </CCol>
+                  <CCol md={6}>
+                      <CFormInput type="time" label="Hora Fin *" name="end_time" value={formData.end_time} onChange={handleInputChange} invalid={!!errors.end_time} />
+                      {renderError('end_time')}
+                  </CCol>
+              </CRow>
+              <CFormTextarea label="Eventos Imprevistos" name="unforeseen_events" value={formData.unforeseen_events} onChange={handleInputChange} rows="3" />
+          </CForm>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" variant="ghost" onClick={handleCloseModal}>Cancelar</CButton>
+          <CButton color="success" onClick={handleSaveSchedule} disabled={isSaving}>Guardar</CButton>
+        </CModalFooter>
+      </CModal>
+    </div>
   );
 };
 
