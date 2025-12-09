@@ -18,10 +18,24 @@ import {
   CForm,
   CFormSelect,
   CAlert,
+  CRow,
+  CCol,
+  CInputGroup,
+  CInputGroupText,
   CFormInput,
+  CAvatar
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
-import { cilPlus, cilPencil, cilTrash } from '@coreui/icons';
+import { 
+  cilPlus, 
+  cilPencil, 
+  cilTrash, 
+  cilPeople, 
+  cilSearch, 
+  cilUserFollow, 
+  cilUser,
+  cilSchool
+} from '@coreui/icons';
 import API_URL from '../../../config';
 
 const Tutors = () => {
@@ -30,18 +44,18 @@ const Tutors = () => {
   
   const [formData, setFormData] = useState({ uid_users: '' });
   
-  // UI States
+  // Estados de Interfaz
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedTutor, setSelectedTutor] = useState(null);
   const [filter, setFilter] = useState({ uid_users: '' });
   
-  // Validaciones
+  // Estados de Validación y Carga
   const [errors, setErrors] = useState({});
   const [alertBox, setAlertBox] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Modal Borrado
+  // Estados Modal Eliminar
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [idToDelete, setIdToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -54,39 +68,55 @@ const Tutors = () => {
     fetchUsers();
   }, []);
 
+  // --- LÓGICA DE DATOS (Fetch Seguro) ---
+
+  const authenticatedFetch = async (url, options = {}) => {
+      const token = localStorage.getItem('token');
+      const headers = { 'Content-Type': 'application/json', ...options.headers };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      const response = await fetch(url, { ...options, headers });
+      
+      if (response.status === 401 || response.status === 403) {
+          localStorage.removeItem('token');
+          window.location.href = '#/login';
+          throw new Error('Sesión expirada.');
+      }
+      return response;
+  };
+
   const fetchTutors = async () => {
     try {
-      const response = await fetch(tutorsUrl);
+      const response = await authenticatedFetch(tutorsUrl);
       const data = await response.json();
       setTutors(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
-      setAlertBox('Error al obtener la lista de tutores.');
+      if (error.message !== 'Sesión expirada.') setAlertBox('Error al obtener la lista de tutores.');
     }
   };
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(usersUrl);
+      const response = await authenticatedFetch(usersUrl);
       const data = await response.json();
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
-      setAlertBox('Error al obtener la lista de usuarios.');
+      if (error.message !== 'Sesión expirada.') setAlertBox('Error al obtener la lista de usuarios.');
     }
   };
 
-  // Helper: Obtener usuarios disponibles (que no son tutores aun)
-  // En modo edición, debe incluir al usuario que ya tiene asignado el tutor actual.
+  // Helper Crítico: Filtrar usuarios que ya son tutores
   const getAvailableUsers = () => {
     const assignedUserIds = tutors.map(t => t.uid_users);
     
     return users.filter(user => {
-        // Si estamos editando y este es el usuario actual del tutor, permitirlo
+        // Si estamos editando, permitir seleccionar al usuario actual del tutor
         if (editMode && selectedTutor && user.uid_users === selectedTutor.uid_users) {
             return true;
         }
-        // Si no, filtrar si ya está asignado
+        // Si no, ocultar los que ya son tutores
         return !assignedUserIds.includes(user.uid_users);
     });
   };
@@ -125,6 +155,7 @@ const Tutors = () => {
 
   const handleSaveTutor = async () => {
     if (!validateForm()) return;
+    
     setIsSaving(true);
     setAlertBox(null);
 
@@ -132,9 +163,8 @@ const Tutors = () => {
       const method = editMode ? 'PUT' : 'POST';
       const url = editMode ? `${tutorsUrl}/${selectedTutor.id_tutor}` : tutorsUrl;
 
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
@@ -162,9 +192,10 @@ const Tutors = () => {
     if (!idToDelete) return;
     setIsDeleting(true);
     try {
-        const res = await fetch(`${tutorsUrl}/${idToDelete}`, { method: 'DELETE' });
+        const res = await authenticatedFetch(`${tutorsUrl}/${idToDelete}`, { method: 'DELETE' });
+        const data = await res.json();
+
         if (!res.ok) {
-            const data = await res.json();
             throw new Error(data.message || 'Error al eliminar');
         }
         await fetchTutors();
@@ -199,138 +230,200 @@ const Tutors = () => {
 
   const renderError = (field) => errors[field] ? <div style={{color: '#dc3545', fontSize: '0.8rem'}}>{errors[field]}</div> : null;
 
-  // Filtrado de la tabla principal
+  const getUserData = (uid) => {
+      return users.find(u => u.uid_users === uid) || {};
+  };
+
+  const getInitials = (name, lastname) => {
+      return `${name?.charAt(0) || ''}${lastname?.charAt(0) || ''}`.toUpperCase();
+  };
+
+  // Filtros
   const filteredTutors = tutors.filter((tutor) => {
-      // Buscar nombre del usuario asociado para filtrar por nombre
-      const user = users.find(u => u.uid_users === tutor.uid_users);
-      const fullName = user ? `${user.first_name} ${user.last_name}` : '';
-      
+      const user = getUserData(tutor.uid_users);
+      const fullName = user.first_name ? `${user.first_name} ${user.last_name}` : '';
       const search = filter.uid_users.toLowerCase();
       
+      // Buscar por ID de usuario o Nombre real
       return String(tutor.uid_users).includes(search) || fullName.toLowerCase().includes(search);
   });
 
-  const getUserLabel = (uid) => {
-      const user = users.find(u => u.uid_users === uid);
-      return user ? `${user.first_name} ${user.last_name}` : uid;
-  };
+  // Stats
+  const totalTutors = tutors.length;
+  const availableUsers = getAvailableUsers().length;
 
   return (
-    <CCard>
-      <CCardHeader className="d-flex justify-content-between align-items-center">
-        <h5 className="m-0">Tutores</h5>
-        <CButton color="success" onClick={() => { handleCloseModal(); setShowModal(true); }}>
-          <CIcon icon={cilPlus} className="me-2" /> Agregar Tutor
-        </CButton>
-      </CCardHeader>
-
-      <CCardBody>
-        {alertBox && !showModal && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
-
-        <div className="mb-3">
-            <CFormInput 
-                placeholder="Buscar por nombre de usuario..." 
-                value={filter.uid_users} 
-                onChange={(e) => setFilter({ uid_users: e.target.value })} 
-                style={{maxWidth: '300px'}}
-            />
-        </div>
-
-        <CTable hover responsive bordered>
-          <CTableHead>
-            <CTableRow>
-              <CTableHeaderCell>ID Tutor</CTableHeaderCell>
-              <CTableHeaderCell>Usuario Asignado</CTableHeaderCell>
-              <CTableHeaderCell>ID Usuario</CTableHeaderCell>
-              <CTableHeaderCell>Fecha Registro</CTableHeaderCell>
-              <CTableHeaderCell>Acciones</CTableHeaderCell>
-            </CTableRow>
-          </CTableHead>
-
-          <CTableBody>
-            {filteredTutors.map((tutor) => (
-              <CTableRow key={tutor.id_tutor}>
-                <CTableDataCell>{tutor.id_tutor}</CTableDataCell>
-                <CTableDataCell>{getUserLabel(tutor.uid_users)}</CTableDataCell>
-                <CTableDataCell>
-                    <span style={{fontFamily: 'monospace', fontSize: '0.85em'}}>{tutor.uid_users}</span>
-                </CTableDataCell>
-                <CTableDataCell>{tutor.created_at}</CTableDataCell>
-                <CTableDataCell>
-                    <CButton color="warning" size="sm" onClick={() => handleEditTutor(tutor)} className="me-2">
-                        <CIcon icon={cilPencil} />
-                    </CButton>
-                    <CButton color="danger" size="sm" onClick={() => handleDeleteClick(tutor.id_tutor)}>
-                        <CIcon icon={cilTrash} />
-                    </CButton>
-                </CTableDataCell>
-              </CTableRow>
-            ))}
-             {filteredTutors.length === 0 && <CTableRow><CTableDataCell colSpan="5" className="text-center">No hay tutores registrados.</CTableDataCell></CTableRow>}
-          </CTableBody>
-        </CTable>
-
-        {/* Modal Delete */}
-        <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} backdrop="static">
-          <CModalHeader>
-            <CModalTitle>Confirmar Eliminación</CModalTitle>
-          </CModalHeader>
-          <CModalBody>¿Está seguro de eliminar este tutor? No podrá hacerlo si tiene estudiantes asignados.</CModalBody>
-          <CModalFooter>
-            <CButton color="danger" onClick={confirmDelete} disabled={isDeleting}>Eliminar</CButton>
-            <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</CButton>
-          </CModalFooter>
-        </CModal>
-
-        {/* Modal Form */}
-        <CModal visible={showModal} backdrop="static" onClose={handleCloseModal}>
-          <CModalHeader>
-            <CModalTitle>{editMode ? 'Editar Tutor' : 'Agregar Tutor'}</CModalTitle>
-          </CModalHeader>
-
-          <CModalBody>
-            {alertBox && <CAlert color="danger">{alertBox}</CAlert>}
-            <CForm>
-              <div className="mb-3">
-                  <div style={{ marginBottom: 6, fontSize: '0.9em', color: '#666' }}>
-                    Seleccione un usuario existente para asignarle el rol de Tutor.
-                  </div>
-                  <CFormSelect
-                    label="Usuario *"
-                    name="uid_users"
-                    value={formData.uid_users}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    invalid={!!errors.uid_users}
-                  >
-                    <option value="">Seleccionar Usuario...</option>
-                    {getAvailableUsers().map((user) => (
-                      <option key={user.uid_users} value={user.uid_users}>
-                        {user.first_name} {user.last_name} ({user.email})
-                      </option>
-                    ))}
-                  </CFormSelect>
-                  {renderError('uid_users')}
-                  {getAvailableUsers().length === 0 && !editMode && (
-                      <div className="text-warning small mt-2">
-                          No hay usuarios disponibles. Todos están asignados o no hay usuarios registrados.
+    <div className="container-fluid mt-4">
+      
+      {/* --- KPI CARDS (Minimalistas & Dark Mode) --- */}
+      <CRow className="mb-4">
+          <CCol sm={6} lg={4}>
+              <CCard className="border-start-4 border-start-warning shadow-sm h-100">
+                  <CCardBody className="d-flex justify-content-between align-items-center p-3">
+                      <div>
+                          <div className="text-medium-emphasis small text-uppercase fw-bold">Total Tutores</div>
+                          <div className="fs-4 fw-semibold text-body">{totalTutors}</div>
                       </div>
-                  )}
-              </div>
-            </CForm>
-          </CModalBody>
+                      <CIcon icon={cilSchool} size="xl" className="text-warning" />
+                  </CCardBody>
+              </CCard>
+          </CCol>
+          <CCol sm={6} lg={4}>
+              <CCard className="border-start-4 border-start-success shadow-sm h-100">
+                  <CCardBody className="d-flex justify-content-between align-items-center p-3">
+                      <div>
+                          <div className="text-medium-emphasis small text-uppercase fw-bold">Usuarios Disponibles</div>
+                          <div className="fs-4 fw-semibold text-body">{availableUsers}</div>
+                          <div className="small text-medium-emphasis">Candidatos a tutor</div>
+                      </div>
+                      <CIcon icon={cilUserFollow} size="xl" className="text-success" />
+                  </CCardBody>
+              </CCard>
+          </CCol>
+      </CRow>
 
-          <CModalFooter>
-            <CButton color="success" onClick={handleSaveTutor} disabled={isSaving}>
-                Guardar
+      {/* --- SECCIÓN PRINCIPAL --- */}
+      <CCard className="shadow-sm border-0">
+        <CCardHeader className="bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
+            <h5 className="mb-0 text-body">Gestión de Tutores</h5>
+            <CButton color="primary" onClick={() => { handleCloseModal(); setShowModal(true); }} className="d-flex align-items-center">
+              <CIcon icon={cilPlus} className="me-2" /> Asignar Tutor
             </CButton>
-            <CButton color="secondary" onClick={handleCloseModal}>
-                Cancelar
-            </CButton>
-          </CModalFooter>
-        </CModal>
-      </CCardBody>
-    </CCard>
+        </CCardHeader>
+
+        <CCardBody>
+            {alertBox && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
+
+            {/* Filtro Simple */}
+            <div className="mb-4" style={{ maxWidth: '300px' }}>
+                <CInputGroup>
+                    <CInputGroupText className="bg-transparent text-medium-emphasis border-end-0">
+                        <CIcon icon={cilSearch} />
+                    </CInputGroupText>
+                    <CFormInput 
+                        className="bg-transparent border-start-0"
+                        placeholder="Buscar por nombre o ID..." 
+                        value={filter.uid_users} 
+                        onChange={(e) => setFilter({ uid_users: e.target.value })} 
+                    />
+                </CInputGroup>
+            </div>
+
+            {/* Tabla Moderna (Sin header blanco forzado) */}
+            <CTable align="middle" className="mb-0 border" hover responsive striped>
+              <CTableHead>
+                <CTableRow>
+                  <CTableHeaderCell className="text-center" style={{width: '60px'}}><CIcon icon={cilUser} /></CTableHeaderCell>
+                  <CTableHeaderCell>Tutor</CTableHeaderCell>
+                  <CTableHeaderCell>ID de Sistema</CTableHeaderCell>
+                  <CTableHeaderCell>Fecha de Asignación</CTableHeaderCell>
+                  <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
+                </CTableRow>
+              </CTableHead>
+              <CTableBody>
+                {filteredTutors.map((tutor) => {
+                    const user = getUserData(tutor.uid_users);
+                    return (
+                      <CTableRow key={tutor.id_tutor}>
+                        <CTableDataCell className="text-center">
+                            <CAvatar size="md" color="warning" textColor="white">
+                                {getInitials(user.first_name, user.last_name)}
+                            </CAvatar>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                            <div className="fw-bold text-body">{user.first_name} {user.last_name}</div>
+                            <div className="small text-medium-emphasis">{user.email}</div>
+                        </CTableDataCell>
+                        
+                        {/* Corrección del estilo del ID: Usamos un contenedor simple en lugar de Badge 'light' */}
+                        <CTableDataCell>
+                            <div className="small text-medium-emphasis font-monospace border rounded px-2 py-1 d-inline-block">
+                                {tutor.uid_users?.substring(0, 8)}...
+                            </div>
+                        </CTableDataCell>
+                        
+                        <CTableDataCell className="text-body">
+                            {tutor.created_at}
+                        </CTableDataCell>
+                        <CTableDataCell className="text-end">
+                            <CButton color="light" size="sm" variant="ghost" className="me-2" onClick={() => handleEditTutor(tutor)}>
+                                <CIcon icon={cilPencil} className="text-warning"/>
+                            </CButton>
+                            <CButton color="light" size="sm" variant="ghost" onClick={() => handleDeleteClick(tutor.id_tutor)}>
+                                <CIcon icon={cilTrash} className="text-danger"/>
+                            </CButton>
+                        </CTableDataCell>
+                      </CTableRow>
+                    );
+                })}
+                {filteredTutors.length === 0 && (
+                    <CTableRow>
+                        <CTableDataCell colSpan="5" className="text-center py-4 text-medium-emphasis">
+                            No hay tutores registrados.
+                        </CTableDataCell>
+                    </CTableRow>
+                )}
+              </CTableBody>
+            </CTable>
+        </CCardBody>
+      </CCard>
+
+      {/* --- MODALES --- */}
+
+      <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} backdrop="static" alignment="center">
+        <CModalHeader>
+          <CModalTitle>Confirmar Eliminación</CModalTitle>
+        </CModalHeader>
+        <CModalBody>¿Está seguro de eliminar este tutor? No podrá hacerlo si tiene estudiantes asignados.</CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" variant="ghost" onClick={() => setShowDeleteModal(false)}>Cancelar</CButton>
+          <CButton color="danger" onClick={confirmDelete} disabled={isDeleting}>Eliminar</CButton>
+        </CModalFooter>
+      </CModal>
+
+      <CModal visible={showModal} backdrop="static" onClose={handleCloseModal}>
+        <CModalHeader>
+          <CModalTitle>{editMode ? 'Editar Asignación' : 'Asignar Tutor'}</CModalTitle>
+        </CModalHeader>
+
+        <CModalBody>
+          {alertBox && <CAlert color="danger">{alertBox}</CAlert>}
+          <CForm>
+            <div className="mb-3">
+                <div className="text-medium-emphasis small mb-2">
+                  Seleccione un usuario existente para asignarle el rol de Tutor.
+                </div>
+                <CFormSelect
+                  label="Usuario *"
+                  name="uid_users"
+                  value={formData.uid_users}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  invalid={!!errors.uid_users}
+                >
+                  <option value="">Seleccionar Usuario...</option>
+                  {getAvailableUsers().map((user) => (
+                    <option key={user.uid_users} value={user.uid_users}>
+                      {user.first_name} {user.last_name} ({user.email})
+                    </option>
+                  ))}
+                </CFormSelect>
+                {renderError('uid_users')}
+                {getAvailableUsers().length === 0 && !editMode && (
+                    <div className="text-warning small mt-2">
+                        No hay usuarios disponibles. Todos están asignados o no hay usuarios registrados.
+                    </div>
+                )}
+            </div>
+          </CForm>
+        </CModalBody>
+
+        <CModalFooter>
+          <CButton color="secondary" variant="ghost" onClick={handleCloseModal}>Cancelar</CButton>
+          <CButton color="success" onClick={handleSaveTutor} disabled={isSaving}>Guardar</CButton>
+        </CModalFooter>
+      </CModal>
+    </div>
   );
 };
 
