@@ -19,12 +19,17 @@ import {
   CFormInput,
   CFormTextarea,
   CFormSelect,
+  CAlert,
+  CBadge
 } from '@coreui/react';
+import CIcon from '@coreui/icons-react';
+import { cilPencil, cilTrash, cilPlus, cilSearch, cilDescription } from '@coreui/icons';
 import API_URL from '../../../config';
 
 const GradeReports = () => {
   const [newsletters, setNewsletters] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [tutors, setTutors] = useState([]); 
+  
   const [formData, setFormData] = useState({
     uid_users: '',
     title: '',
@@ -33,77 +38,88 @@ const GradeReports = () => {
     newsletter_status: '',
     recipients: '',
   });
+  
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedNewsletter, setSelectedNewsletter] = useState(null);
-  const [filter, setFilter] = useState({ title: '', newsletter_status: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  const getToken = () => localStorage.getItem('token');
 
   const newslettersUrl = `${API_URL}/newsletters`;
-  const usersUrl = `${API_URL}/users`;
+  const tutorsUrl = `${API_URL}/tutors`; 
 
   useEffect(() => {
     fetchNewsletters();
-    fetchUsers();
+    fetchTutors();
   }, []);
 
   const fetchNewsletters = async () => {
     try {
-      const response = await fetch(newslettersUrl);
-      const data = await response.json();
-      if (Array.isArray(data)) {
+      const response = await fetch(newslettersUrl, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
         setNewsletters(data);
       } else {
-        console.error('Received data is not an array:', data);
-        alert('Error: Datos recibidos no son válidos.');
+        console.error('Error fetching newsletters');
       }
     } catch (error) {
       console.error('Error fetching newsletters:', error);
-      alert('Ocurrió un error al obtener los reportes de calificaciones. Por favor, inténtelo de nuevo.');
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchTutors = async () => {
     try {
-      const response = await fetch(usersUrl);
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setUsers(data);
-      } else {
-        console.error('Received data is not an array:', data);
-        alert('Error: Datos recibidos no son válidos.');
+      const response = await fetch(tutorsUrl, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTutors(data);
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
-      alert('Ocurrió un error al obtener los usuarios. Por favor, inténtelo de nuevo.');
+      console.error('Error fetching tutors:', error);
     }
-  };
-
-  const getAvailableUsers = () => {
-    const assignedUserIds = newsletters.map((newsletter) => newsletter.uid_users);
-    return users.filter((user) => !assignedUserIds.includes(user.uid_users));
   };
 
   const handleSaveNewsletter = async () => {
+    setErrorMessage(null);
+
+    // --- Validaciones Frontend ---
+    if (!formData.uid_users) return setErrorMessage('Debe seleccionar un Tutor.');
+    if (!formData.title.trim()) return setErrorMessage('El título es obligatorio.');
+    if (!formData.content.trim()) return setErrorMessage('El contenido es obligatorio.');
+    if (!formData.date_sent) return setErrorMessage('La fecha de envío es obligatoria.');
+    if (!formData.newsletter_status) return setErrorMessage('Debe seleccionar un estado.');
+    if (!formData.recipients.trim()) return setErrorMessage('Especifique los destinatarios (ej: "Padres de familia").');
+
     try {
       const method = editMode ? 'PUT' : 'POST';
       const url = editMode ? `${newslettersUrl}/${selectedNewsletter.id_newsletters}` : newslettersUrl;
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`
+        },
         body: JSON.stringify(formData),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Server response error');
+        throw new Error(data.message || 'Error al guardar');
       }
 
       fetchNewsletters();
-      setShowModal(false);
-      resetForm();
+      handleCloseModal();
+      alert(editMode ? 'Reporte actualizado correctamente' : 'Reporte creado correctamente');
     } catch (error) {
-      console.error('Error saving newsletter:', error);
-      alert('Ocurrió un error al guardar el reporte de calificaciones. Por favor, inténtelo de nuevo.');
+      setErrorMessage(error.message);
     }
   };
 
@@ -113,31 +129,32 @@ const GradeReports = () => {
       uid_users: newsletter.uid_users,
       title: newsletter.title,
       content: newsletter.content,
-      date_sent: newsletter.date_sent,
+      date_sent: newsletter.date_sent ? newsletter.date_sent.split('T')[0] : '', 
       newsletter_status: newsletter.newsletter_status,
       recipients: newsletter.recipients,
     });
     setEditMode(true);
     setShowModal(true);
+    setErrorMessage(null);
   };
 
   const handleDeleteNewsletter = async (id) => {
+    if (!window.confirm("¿Estás seguro de eliminar este reporte permanentemente?")) return;
+
     try {
-      const response = await fetch(`${newslettersUrl}/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${newslettersUrl}/${id}`, { 
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
 
       if (!response.ok) {
-        throw new Error('Server response error');
+        throw new Error('Error del servidor');
       }
 
       fetchNewsletters();
     } catch (error) {
-      console.error('Error deleting newsletter:', error);
-      alert('Ocurrió un error al eliminar el reporte de calificaciones. Por favor, inténtelo de nuevo.');
+      alert('Error al eliminar el reporte.');
     }
-  };
-
-  const handleFilterChange = (e) => {
-    setFilter({ ...filter, [e.target.name]: e.target.value });
   };
 
   const resetForm = () => {
@@ -151,6 +168,7 @@ const GradeReports = () => {
     });
     setEditMode(false);
     setSelectedNewsletter(null);
+    setErrorMessage(null);
   };
 
   const handleCloseModal = () => {
@@ -158,125 +176,167 @@ const GradeReports = () => {
     resetForm();
   };
 
-  const filteredNewsletters = newsletters.filter(
-    (newsletter) =>
-      newsletter.title.toLowerCase().includes(filter.title.toLowerCase()) &&
-      (filter.newsletter_status === '' || newsletter.newsletter_status === filter.newsletter_status)
-  );
+
+  const filteredNewsletters = newsletters.filter((item) => {
+    const term = searchTerm.toLowerCase();
+    const tutorName = item.first_name ? `${item.first_name} ${item.last_name}`.toLowerCase() : '';
+    const title = item.title ? item.title.toLowerCase() : '';
+    return tutorName.includes(term) || title.includes(term);
+  });
 
   return (
     <CCard>
-      <CCardHeader>
-        <h5>Reportes de Calificaciones</h5>
-        <CButton color="success" onClick={() => setShowModal(true)}>
-          Agregar Reporte
+      <CCardHeader className="d-flex justify-content-between align-items-center">
+        <h5><CIcon icon={cilDescription} className="me-2"/>Gestión de Boletines / Reportes</h5>
+        <CButton color="primary" onClick={() => setShowModal(true)}>
+          <CIcon icon={cilPlus} /> Nuevo Reporte
         </CButton>
       </CCardHeader>
       <CCardBody>
-        <div className="mb-3">
-          <CFormInput
-            placeholder="Filtrar por título"
-            name="title"
-            value={filter.title}
-            onChange={handleFilterChange}
-            className="mb-2"
-          />
-          <CFormSelect
-            placeholder="Filtrar por estado"
-            name="newsletter_status"
-            value={filter.newsletter_status}
-            onChange={handleFilterChange}
-          >
-            <option value="">Todos los estados</option>
-            <option value="active">Activo</option>
-            <option value="inactive">Inactivo</option>
-          </CFormSelect>
+        
+        {/* Barra de Búsqueda */}
+        <div className="mb-4 d-flex" style={{ maxWidth: '400px' }}>
+             <CFormInput 
+                placeholder="Buscar por tutor o título..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                prefix={<CIcon icon={cilSearch} />}
+             />
         </div>
-        <CTable bordered hover responsive>
-          <CTableHead>
+
+        <CTable bordered hover responsive striped className="align-middle">
+          <CTableHead color="dark">
             <CTableRow>
-              <CTableHeaderCell>ID Reporte</CTableHeaderCell>
-              <CTableHeaderCell>ID Usuario</CTableHeaderCell>
+              <CTableHeaderCell>#</CTableHeaderCell>
+              <CTableHeaderCell>Tutor Asignado</CTableHeaderCell>
               <CTableHeaderCell>Título</CTableHeaderCell>
-              <CTableHeaderCell>Contenido</CTableHeaderCell>
-              <CTableHeaderCell>Fecha de Envío</CTableHeaderCell>
-              <CTableHeaderCell>Estado</CTableHeaderCell>
+              <CTableHeaderCell>Fecha Envío</CTableHeaderCell>
               <CTableHeaderCell>Destinatarios</CTableHeaderCell>
+              <CTableHeaderCell>Estado</CTableHeaderCell>
               <CTableHeaderCell>Acciones</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
-            {filteredNewsletters.map((newsletter) => (
-              <CTableRow key={newsletter.id_newsletters}>
-                <CTableDataCell>{newsletter.id_newsletters}</CTableDataCell>
-                <CTableDataCell>{newsletter.uid_users}</CTableDataCell>
-                <CTableDataCell>{newsletter.title}</CTableDataCell>
-                <CTableDataCell>{newsletter.content}</CTableDataCell>
-                <CTableDataCell>{newsletter.date_sent}</CTableDataCell>
-                <CTableDataCell>{newsletter.newsletter_status}</CTableDataCell>
-                <CTableDataCell>{newsletter.recipients}</CTableDataCell>
-                <CTableDataCell>
-                  <CButton
-                    color="warning"
-                    size="sm"
-                    onClick={() => handleEditNewsletter(newsletter)}
-                  >
-                    Editar
-                  </CButton>{' '}
-                  <CButton
-                    color="danger"
-                    size="sm"
-                    onClick={() => handleDeleteNewsletter(newsletter.id_newsletters)}
-                  >
-                    Eliminar
-                  </CButton>
-                </CTableDataCell>
-              </CTableRow>
-            ))}
+            {filteredNewsletters.length > 0 ? (
+                filteredNewsletters.map((newsletter) => (
+                <CTableRow key={newsletter.id_newsletters}>
+                    <CTableDataCell>{newsletter.id_newsletters}</CTableDataCell>
+                    <CTableDataCell>
+                        <strong>{newsletter.first_name} {newsletter.last_name}</strong>
+                    </CTableDataCell>
+                    <CTableDataCell>{newsletter.title}</CTableDataCell>
+                    <CTableDataCell>{newsletter.date_sent}</CTableDataCell>
+                    <CTableDataCell>{newsletter.recipients}</CTableDataCell>
+                    <CTableDataCell>
+                        <CBadge color={newsletter.newsletter_status === 'active' ? 'success' : 'secondary'}>
+                            {newsletter.newsletter_status === 'active' ? 'Activo' : 'Inactivo'}
+                        </CBadge>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                    <CButton color="warning" variant="outline" size="sm" onClick={() => handleEditNewsletter(newsletter)} className="me-2">
+                        <CIcon icon={cilPencil} />
+                    </CButton>
+                    <CButton color="danger" variant="outline" size="sm" onClick={() => handleDeleteNewsletter(newsletter.id_newsletters)}>
+                        <CIcon icon={cilTrash} />
+                    </CButton>
+                    </CTableDataCell>
+                </CTableRow>
+                ))
+            ) : (
+                <CTableRow>
+                    <CTableDataCell colSpan="7" className="text-center py-4 text-muted">
+                        No hay reportes registrados.
+                    </CTableDataCell>
+                </CTableRow>
+            )}
           </CTableBody>
         </CTable>
 
-        <CModal visible={showModal} onClose={handleCloseModal}>
-          <CModalHeader>
-            <CModalTitle>{editMode ? 'Editar Reporte' : 'Agregar Reporte'}</CModalTitle>
+        {/* Modal */}
+        <CModal visible={showModal} onClose={handleCloseModal} size="lg">
+          <CModalHeader closeButton>
+            <CModalTitle>{editMode ? 'Editar Reporte' : 'Nuevo Reporte de Notas'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
+            {errorMessage && <CAlert color="danger">{errorMessage}</CAlert>}
+            
             <CForm>
-              <CFormSelect
-                label="ID Usuario"
-                value={formData.uid_users}
-                onChange={(e) => setFormData({ ...formData, uid_users: e.target.value })}
-                required
-              >
-                <option value="">Seleccionar Usuario</option>
-                {getAvailableUsers().map((user) => (
-                  <option key={user.uid_users} value={user.uid_users}>
-                    {user.first_name} {user.last_name} ({user.uid_users})
-                  </option>
-                ))}
-              </CFormSelect>
-              <CFormInput
-                type="text"
-                label="Título"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                required
-              />
-              <CFormTextarea
-                label="Contenido"
-                value={formData.content}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                rows="3"
-                required
-              />
+              <div className="mb-3">
+                <label className="form-label fw-bold">Tutor (Representante) *</label>
+                <CFormSelect
+                    value={formData.uid_users}
+                    onChange={(e) => setFormData({ ...formData, uid_users: e.target.value })}
+                >
+                    <option value="">-- Seleccione un Tutor Registrado --</option>
+                    {tutors.map((tutor) => (
+                    <option key={tutor.uid_users} value={tutor.uid_users}>
+                        {tutor.first_name} {tutor.last_name} (DNI: {tutor.dni})
+                    </option>
+                    ))}
+                </CFormSelect>
+              </div>
+
+              <div className="row">
+                  <div className="col-md-8 mb-3">
+                    <label className="form-label fw-bold">Título del Reporte *</label>
+                    <CFormInput
+                        type="text"
+                        placeholder="Ej: Boletín Primer Lapso 2024"
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label fw-bold">Fecha de Envío *</label>
+                    <CFormInput
+                        type="date"
+                        value={formData.date_sent}
+                        onChange={(e) => setFormData({ ...formData, date_sent: e.target.value })}
+                    />
+                  </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label fw-bold">Contenido / Observaciones *</label>
+                <CFormTextarea
+                    rows="4"
+                    placeholder="Escriba aquí los detalles del reporte..."
+                    value={formData.content}
+                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                />
+              </div>
+
+              <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Grupo Destinatario *</label>
+                    <CFormInput
+                        type="text"
+                        placeholder="Ej: Padres, Alumno, Administrativo"
+                        value={formData.recipients}
+                        onChange={(e) => setFormData({ ...formData, recipients: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Estado *</label>
+                    <CFormSelect
+                        value={formData.newsletter_status}
+                        onChange={(e) => setFormData({ ...formData, newsletter_status: e.target.value })}
+                    >
+                        <option value="">-- Seleccione --</option>
+                        <option value="active">Activo (Visible)</option>
+                        <option value="inactive">Inactivo (Borrador)</option>
+                    </CFormSelect>
+                  </div>
+              </div>
+
             </CForm>
           </CModalBody>
           <CModalFooter>
-            <CButton color="success" onClick={handleSaveNewsletter}>
-              Guardar
-            </CButton>
             <CButton color="secondary" onClick={handleCloseModal}>
               Cancelar
+            </CButton>
+            <CButton color="primary" onClick={handleSaveNewsletter}>
+              {editMode ? 'Guardar Cambios' : 'Crear Reporte'}
             </CButton>
           </CModalFooter>
         </CModal>
