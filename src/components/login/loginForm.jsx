@@ -11,7 +11,7 @@ import {
 } from 'reactstrap';
 import { useNavigate } from 'react-router-dom'; 
 import './login.css';
-import API_URL from '../../../config'; // Importar URL centralizada
+import API_URL from '../../../config';
 
 const LoginForm = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
@@ -27,7 +27,6 @@ const LoginForm = ({ onLoginSuccess }) => {
     setErrorMessage(null);
   
     try {
-      // Usar la ruta correcta del backend (/auth/login)
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -38,24 +37,26 @@ const LoginForm = ({ onLoginSuccess }) => {
   
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
+        throw new Error(errorData.message || 'Error al iniciar sesión');
       }
   
       const data = await response.json();
       const { token } = data;
   
-      // Guardar con la clave estándar 'token' (no authToken)
       localStorage.setItem('token', token); 
   
-      // Notificar al componente padre (App.js)
       if (onLoginSuccess) {
         onLoginSuccess(token);
       }
       
       navigate('/dashboard'); 
     } catch (error) {
-      console.error('Error during login:', error);
-      setErrorMessage(error.message || 'An unexpected error occurred');
+      console.error('Error durante el inicio de sesión:', error);
+      let msg = error.message;
+      if (msg === 'Invalid credentials') msg = 'Credenciales inválidas';
+      if (msg === 'User not found') msg = 'Usuario no encontrado';
+      
+      setErrorMessage(msg || 'Ocurrió un error inesperado');
     }
   };
   
@@ -74,14 +75,14 @@ const LoginForm = ({ onLoginSuccess }) => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Password recovery failed');
+        throw new Error(errorData.message || 'Falló la recuperación de contraseña');
       }
 
-      alert('A recovery email has been sent. Check your inbox.');
+      alert('Se ha enviado un correo de recuperación. Revisa tu bandeja de entrada.');
       setShowRecovery(false);
     } catch (error) {
-      console.error('Error during password recovery:', error);
-      setErrorMessage('An unexpected error occurred. Please try again later.');
+      console.error('Error durante la recuperación:', error);
+      setErrorMessage('Ocurrió un error inesperado. Inténtalo más tarde.');
     }
   };
 
@@ -93,7 +94,7 @@ const LoginForm = ({ onLoginSuccess }) => {
       >
         <Card className="blurred-card" style={{ width: '400px' }}>
           <CardBody>
-            <h1 className="text-center">Login</h1>
+            <h1 className="text-center">Iniciar Sesión</h1>
             {errorMessage && (
               <Alert color="danger" className="text-center">
                 {errorMessage}
@@ -101,7 +102,7 @@ const LoginForm = ({ onLoginSuccess }) => {
             )}
             <Form onSubmit={handleLogin}>
               <FormGroup>
-                <Label for="email">Email</Label>
+                <Label for="email">Correo Electrónico</Label>
                 <Input
                   type="email"
                   id="email"
@@ -109,10 +110,11 @@ const LoginForm = ({ onLoginSuccess }) => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="username"
+                  placeholder="ejemplo@correo.com"
                 />
               </FormGroup>
               <FormGroup>
-                <Label for="password">Password</Label>
+                <Label for="password">Contraseña</Label>
                 <Input
                   type="password"
                   id="password"
@@ -120,10 +122,11 @@ const LoginForm = ({ onLoginSuccess }) => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
+                  placeholder="********"
                 />
               </FormGroup>
               <Button color="dark" type="submit" className="btn-spacing" block>
-                Enter
+                Entrar
               </Button>
               <Button
                 color="dark"
@@ -132,14 +135,14 @@ const LoginForm = ({ onLoginSuccess }) => {
                 block
                 type="button"
               >
-                Forgot your password?
+                ¿Olvidaste tu contraseña?
               </Button>
             </Form>
 
             {showRecovery && (
               <Form onSubmit={handlePasswordRecovery} className="mt-3">
                 <FormGroup>
-                  <Label for="recoveryEmail">Enter your email</Label>
+                  <Label for="recoveryEmail">Ingresa tu correo</Label>
                   <Input
                     type="email"
                     id="recoveryEmail"
@@ -149,7 +152,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                   />
                 </FormGroup>
                 <Button type="submit" color="success" block>
-                  Recover Password
+                  Recuperar Contraseña
                 </Button>
               </Form>
             )}

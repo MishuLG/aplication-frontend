@@ -1,6 +1,4 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react'
 import {
   CAvatar,
   CDropdown,
@@ -9,48 +7,77 @@ import {
   CDropdownItem,
   CDropdownMenu,
   CDropdownToggle,
-} from '@coreui/react';
-import CIcon from '@coreui/icons-react';
-import { cilLockLocked, cilUser, cilSettings } from '@coreui/icons';
+} from '@coreui/react'
+import {
+  cilLockLocked,
+  cilUser,
+} from '@coreui/icons'
+import CIcon from '@coreui/icons-react'
+import API_URL from '../../../config'
 
-import avatar10 from './../../assets/images/avatars/10.png';
 
-const AppHeaderDropdown = ({ onLogout }) => {
-  const location = useLocation();
-  const navigate = useNavigate();
+const DEFAULT_IMG = 'https://via.placeholder.com/150?text=U'
 
-  const handleLockAccount = () => {
-    if (onLogout) {
-      onLogout();
-      navigate('/login'); 
-    } else {
-      console.error('onLogout is not defined');
+const AppHeaderDropdown = () => {
+  const [profilePic, setProfilePic] = useState(DEFAULT_IMG)
+
+  useEffect(() => {
+    const fetchProfileImage = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) return
+
+        const response = await fetch(`${API_URL}/auth/profile`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.profile_pic) {
+            setProfilePic(data.profile_pic)
+          }
+        }
+      } catch (error) {
+        console.error("Error cargando imagen del header:", error)
+      }
     }
-  };
+
+    fetchProfileImage()
+  }, [])
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    window.location.href = '#/login' 
+    window.location.reload() 
+  }
 
   return (
-    <CDropdown variant="nav-item" placement="bottom-end">
-      <CDropdownToggle caret={false}>
-        <CAvatar src={avatar10} size="md" />
+    <CDropdown variant="nav-item">
+      <CDropdownToggle placement="bottom-end" className="py-0" caret={false}>
+        {/* Aquí se muestra tu foto de perfil */}
+        <CAvatar src={profilePic} size="md" status="success" />
       </CDropdownToggle>
-      <CDropdownMenu className="header-profile" placement="bottom-end">
-        <CDropdownHeader className="bg-body-danger fw-bold my-2">Settings</CDropdownHeader>
-        <CDropdownItem as={NavLink} to="/profile" className={`dropdown-item ${location.pathname === '/profile' ? 'active' : ''}`}>
+      <CDropdownMenu className="pt-0" placement="bottom-end">
+        <CDropdownHeader className="bg-light fw-semibold py-2">
+          Mi Cuenta
+        </CDropdownHeader>
+        
+        <CDropdownItem href="#/profile">
           <CIcon icon={cilUser} className="me-2" />
-          Profile
+          Mi Perfil
         </CDropdownItem>
-        {/* <CDropdownItem as={NavLink} to="/settings">
-          <CIcon icon={cilSettings} className="me-2" />
-          Settings
-        </CDropdownItem> */}
+        
         <CDropdownDivider />
-        <CDropdownItem onClick={handleLockAccount}>
+        
+        <CDropdownItem onClick={handleLogout} style={{ cursor: 'pointer' }}>
           <CIcon icon={cilLockLocked} className="me-2" />
-          Lock Account
+          Cerrar Sesión
         </CDropdownItem>
       </CDropdownMenu>
     </CDropdown>
-  );
-};
+  )
+}
 
-export default AppHeaderDropdown;
+export default AppHeaderDropdown

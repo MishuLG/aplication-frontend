@@ -106,24 +106,24 @@ const _nav = [
   },
   {
     component: CNavGroup,
-    name: 'Ratings',
+    name: 'Calificaciones',
     icon: <CIcon icon={cilNotes} customClassName="nav-icon" />,
     items: [
       {
         component: CNavItem,
-        name: 'Evaluations',
+        name: 'Evaluaciones',
         to: '/evaluations',
       },
     ],
   },
   {
     component: CNavGroup,
-    name: 'Newsletters',
+    name: 'Boletines',
     icon: <CIcon icon={cilFile} customClassName="nav-icon" />,
     items: [
       {
         component: CNavItem,
-        name: 'Grade Reports',
+        name: 'Informes de calificaciones',
         to: '/grade_reports',
       },
     ],
