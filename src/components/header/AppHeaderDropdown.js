@@ -16,7 +16,7 @@ import CIcon from '@coreui/icons-react'
 import API_URL from '../../../config'
 
 
-const DEFAULT_IMG = 'https://via.placeholder.com/150?text=U'
+const DEFAULT_IMG = 'https://via.placeholder.com/150?text=U';
 
 const AppHeaderDropdown = () => {
   const [profilePic, setProfilePic] = useState(DEFAULT_IMG)

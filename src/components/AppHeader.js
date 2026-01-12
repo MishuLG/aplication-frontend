@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react'
-import { NavLink } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import {
   CContainer,
@@ -10,27 +9,23 @@ import {
   CHeader,
   CHeaderNav,
   CHeaderToggler,
-  CNavLink,
-  CNavItem,
   useColorModes,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
-  cilBell,
   cilContrast,
-  cilEnvelopeOpen,
-  cilList,
   cilMenu,
   cilMoon,
   cilSun,
 } from '@coreui/icons'
 
+// Importamos los estilos nuevos
 import '../css/header.css'
 
 import { AppBreadcrumb } from './index'
 import { AppHeaderDropdown } from './header/index'
 
-const AppHeader = ({ onLogout, currentUser }) => {
+const AppHeader = ({ onLogout }) => {
   const headerRef = useRef()
   const { colorMode, setColorMode } = useColorModes('coreui-free-react-admin-template-theme')
 
@@ -45,20 +40,29 @@ const AppHeader = ({ onLogout, currentUser }) => {
   }, [])
 
   return (
-    <CHeader position="sticky" className="mb-4 p-0" ref={headerRef}>
-      <CContainer className="header-container" fluid>
+    // CAMBIO: Agregamos 'glass-header'
+    <CHeader position="sticky" className="mb-4 glass-header border-0" ref={headerRef}>
+      <CContainer fluid className="header-container px-4">
+        
+        {/* Botón Menú Minimalista */}
         <CHeaderToggler
+          className="header-toggler ps-1"
           onClick={() => dispatch({ type: 'set', sidebarShow: !sidebarShow })}
-          style={{ marginInlineStart: '-12px' }}
         >
           <CIcon icon={cilMenu} size="lg" />
         </CHeaderToggler>
-        <CHeaderNav className="ms-auto">
-          <li className="nav-item py-1 d-flex align-items-center"> 
-            <div className="vr h-100 mx-2 text-body text-opacity-75"></div>
-          </li>
+
+        {/* Breadcrumb integrado en la misma línea para ahorrar espacio (Opcional, si prefieres debajo déjalo fuera) */}
+        <div className="d-none d-md-flex ms-4">
+            <AppBreadcrumb />
+        </div>
+
+        {/* Navegación Derecha */}
+        <CHeaderNav className="ms-auto d-flex align-items-center gap-3">
+          
+          {/* Selector de Tema (Sol/Luna) Minimalista */}
           <CDropdown variant="nav-item" placement="bottom-end">
-            <CDropdownToggle caret={false} className="d-flex align-items-center justify-content-center"> 
+            <CDropdownToggle caret={false} className="nav-icon-wrapper d-flex align-items-center justify-content-center p-2">
               {colorMode === 'dark' ? (
                 <CIcon icon={cilMoon} size="lg" />
               ) : colorMode === 'auto' ? (
@@ -68,44 +72,30 @@ const AppHeader = ({ onLogout, currentUser }) => {
               )}
             </CDropdownToggle>
             <CDropdownMenu>
-              <CDropdownItem
-                active={colorMode === 'light'}
-                className="d-flex align-items-center"
-                as="button"
-                type="button"
-                onClick={() => setColorMode('light')}
-              >
-                <CIcon className="me-2" icon={cilSun} size="lg" /> Light
+              <CDropdownItem active={colorMode === 'light'} as="button" type="button" onClick={() => setColorMode('light')}>
+                <CIcon className="me-2" icon={cilSun} size="lg" /> Claro
               </CDropdownItem>
-              <CDropdownItem
-                active={colorMode === 'dark'}
-                className="d-flex align-items-center"
-                as="button"
-                type="button"
-                onClick={() => setColorMode('dark')}
-              >
-                <CIcon className="me-2" icon={cilMoon} size="lg" /> Dark
+              <CDropdownItem active={colorMode === 'dark'} as="button" type="button" onClick={() => setColorMode('dark')}>
+                <CIcon className="me-2" icon={cilMoon} size="lg" /> Oscuro
               </CDropdownItem>
-              <CDropdownItem
-                active={colorMode === 'auto'}
-                className="d-flex align-items-center"
-                as="button"
-                type="button"
-                onClick={() => setColorMode('auto')}
-              >
+              <CDropdownItem active={colorMode === 'auto'} as="button" type="button" onClick={() => setColorMode('auto')}>
                 <CIcon className="me-2" icon={cilContrast} size="lg" /> Auto
               </CDropdownItem>
             </CDropdownMenu>
           </CDropdown>
-          <li className="nav-item py-1 d-flex align-items-center"> 
-            <div className="vr h-100 mx-2 text-body text-opacity-75"></div>
-          </li>
+
+          {/* Separador Sutil */}
+          <div className="vr h-50 mx-1"></div>
+
+          {/* Dropdown de Usuario */}
           <AppHeaderDropdown onLogout={onLogout} />
         </CHeaderNav>
       </CContainer>
-      <CContainer className="px-4" fluid>
+      
+      {/* Si prefieres el breadcrumb en una segunda línea, descomenta esto y quita el de arriba */}
+      {/* <CContainer fluid className="px-4 border-top">
         <AppBreadcrumb />
-      </CContainer>
+      </CContainer> */}
     </CHeader>
   )
 }

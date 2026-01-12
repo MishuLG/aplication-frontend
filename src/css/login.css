@@ -1,24 +1,167 @@
+:root {
+  --glass-bg: rgba(20, 20, 20, 0.6);      
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: 12px;                   
+  --input-bg: rgba(255, 255, 255, 0.05);   
+  --input-border: rgba(255, 255, 255, 0.2);
+  --primary-color: #3b82f6;                
+  --primary-hover: #2563eb;
+  --text-main: #ffffff;
+  --text-muted: #94a3b8;
+}
+
+/* Contenedor Principal: Ocupa toda la pantalla */
 .login-container {
-    position: relative;
-    height: 100vh; 
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+
+.login-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5); /* Oscuridad al 50% */
+  backdrop-filter: blur(3px);           /* Desenfoque ligero al fondo */
+  z-index: 1;
+}
+
+/* Tarjeta con efecto Vidrio (Glassmorphism) */
+.glass-card {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 400px;
+  padding: 2.5rem;
+  margin: 1rem;
   
-  .background {
-    position: absolute; 
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: url('/src/assets/images/imagen_escuela.jpg'); 
-    background-size: cover;
-    background-position: center;
-    filter: blur(8px);
-    z-index: -1; 
-  }
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur)); 
   
-  .login-card {
-    width: 400px; 
-  }
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  
+  animation: fadeIn 0.8s ease-out;
+}
+
+/* Animación de entrada suave */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Tipografía */
+.login-title {
+  color: var(--text-main);
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.5px;
+}
+
+.login-subtitle {
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
+}
+
+/* Campos de formulario */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  display: block;
+  color: #e2e8f0;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.glass-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  color: var(--text-main);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.glass-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.glass-input:focus {
+  border-color: var(--primary-color);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+/* Botones */
+.btn-login {
+  width: 100%;
+  padding: 14px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.2s;
+  margin-top: 10px;
+}
+
+.btn-login:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  width: 100%;
+  margin-top: 1.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: color 0.3s;
+}
+
+.btn-link:hover {
+  color: var(--text-main);
+  text-decoration: underline;
+}
+
+/* Mensajes de error */
+.error-message {
+  background: rgba(220, 38, 38, 0.25);
+  border: 1px solid rgba(220, 38, 38, 0.5);
+  color: #fca5a5;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* Pie de página pequeño */
+.login-footer {
+  position: absolute;
+  bottom: 20px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.75rem;
+  z-index: 10;
+}

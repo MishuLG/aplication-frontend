@@ -6,20 +6,16 @@ import {
   CImage,
   CSidebar,
   CSidebarBrand,
-  CSidebarFooter,
   CSidebarHeader,
-  CSidebarToggler,
+  // Se eliminaron CSidebarFooter y CSidebarToggler
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
 
 import { AppSidebarNav } from './AppSidebarNav'
-
-import { logo } from 'src/assets/brand/logo'
-import { sygnet } from 'src/assets/brand/sygnet'
 
 // sidebar nav config
 import navigation from '../_nav'
 
+// Importar CSS
 import '../css/header.css'
 
 const AppSidebar = () => {
@@ -29,8 +25,7 @@ const AppSidebar = () => {
 
   return (
     <CSidebar
-      className="simplebar border-end"
-      colorScheme="dark"
+      className="modern-sidebar border-0"
       position="fixed"
       unfoldable={unfoldable}
       visible={sidebarShow}
@@ -38,22 +33,29 @@ const AppSidebar = () => {
         dispatch({ type: 'set', sidebarShow: visible })
       }}
     >
-      <CSidebarHeader className="border-bottom">
-        <CSidebarBrand to="/">
-          <CImage align='center' src='src/assets/images/icon.png' height={58}></CImage>
+      <CSidebarHeader className="sidebar-header-modern">
+        <CSidebarBrand to="/" className="d-flex align-items-center justify-content-center w-100 text-decoration-none">
+          {/* Logo */}
+          <CImage 
+            src='src/assets/images/icon.png' 
+            height={32} 
+            className="d-inline-block align-middle"
+          />
+          {/* Texto LICEO */}
+          <span className="sidebar-brand-text">LICEO</span>
         </CSidebarBrand>
+        
         <CCloseButton
           className="d-lg-none"
           dark
           onClick={() => dispatch({ type: 'set', sidebarShow: false })}
         />
       </CSidebarHeader>
+
+      {/* Navegación */}
       <AppSidebarNav items={navigation} />
-      <CSidebarFooter className="border-top d-none d-lg-flex">
-          <CSidebarToggler
-              onClick={() => dispatch({ type: 'set', sidebarUnfoldable: !unfoldable })}
-          />
-      </CSidebarFooter>
+
+      {/* Footer eliminado para quitar el botón con bugs */}
     </CSidebar>
   )
 }

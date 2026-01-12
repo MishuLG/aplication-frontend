@@ -1,163 +1,153 @@
 import React, { useState } from 'react';
-import {
-  Button,
-  Card,
-  CardBody,
-  Form,
-  FormGroup,
-  Label,
-  Input,
-  Alert,
-} from 'reactstrap';
-import { useNavigate } from 'react-router-dom'; 
-import './login.css';
+import { useNavigate } from 'react-router-dom';
 import API_URL from '../../../config';
+import schoolImage from '../../assets/images/imagen_escuela.jpeg'; 
+import '../../css/login.css'; 
 
 const LoginForm = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showRecovery, setShowRecovery] = useState(false);
-  const [recoveryEmail, setRecoveryEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState(null);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
 
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
 
+  // --- LÓGICA DE LOGIN ---
   const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
-  
     try {
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-  
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Error al iniciar sesión');
       }
-  
+
       const data = await response.json();
-      const { token } = data;
-  
-      localStorage.setItem('token', token); 
-  
-      if (onLoginSuccess) {
-        onLoginSuccess(token);
-      }
-      
-      navigate('/dashboard'); 
+      localStorage.setItem('token', data.token);
+      if (onLoginSuccess) onLoginSuccess(data.token);
+      navigate('/dashboard');
     } catch (error) {
-      console.error('Error durante el inicio de sesión:', error);
-      let msg = error.message;
-      if (msg === 'Invalid credentials') msg = 'Credenciales inválidas';
-      if (msg === 'User not found') msg = 'Usuario no encontrado';
-      
-      setErrorMessage(msg || 'Ocurrió un error inesperado');
+      setErrorMessage('Credenciales incorrectas o error de conexión');
     }
   };
-  
+
+  // --- LÓGICA DE RECUPERACIÓN ---
   const handlePasswordRecovery = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
-
     try {
       const response = await fetch(`${API_URL}/auth/password-reset/request`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: recoveryEmail }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falló la recuperación de contraseña');
-      }
+      if (!response.ok) throw new Error('Error al enviar solicitud');
 
-      alert('Se ha enviado un correo de recuperación. Revisa tu bandeja de entrada.');
+      alert('Enlace enviado. Por favor revisa tu correo.');
       setShowRecovery(false);
     } catch (error) {
-      console.error('Error durante la recuperación:', error);
-      setErrorMessage('Ocurrió un error inesperado. Inténtalo más tarde.');
+      setErrorMessage('No se pudo enviar el correo de recuperación.');
     }
   };
 
   return (
-    <div className="login-body">
-      <div
-        className="d-flex justify-content-center align-items-center"
-        style={{ height: '100vh' }}
-      >
-        <Card className="blurred-card" style={{ width: '400px' }}>
-          <CardBody>
-            <h1 className="text-center">Iniciar Sesión</h1>
-            {errorMessage && (
-              <Alert color="danger" className="text-center">
-                {errorMessage}
-              </Alert>
-            )}
-            <Form onSubmit={handleLogin}>
-              <FormGroup>
-                <Label for="email">Correo Electrónico</Label>
-                <Input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="username"
-                  placeholder="ejemplo@correo.com"
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label for="password">Contraseña</Label>
-                <Input
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  placeholder="********"
-                />
-              </FormGroup>
-              <Button color="dark" type="submit" className="btn-spacing" block>
-                Entrar
-              </Button>
-              <Button
-                color="dark"
-                className="btn-spacing"
-                onClick={() => setShowRecovery(!showRecovery)}
-                block
-                type="button"
-              >
-                ¿Olvidaste tu contraseña?
-              </Button>
-            </Form>
+    <div 
+      className="login-container" 
+      style={{ backgroundImage: `url(${schoolImage})` }} 
+    >
+      <div className="login-overlay"></div>
 
-            {showRecovery && (
-              <Form onSubmit={handlePasswordRecovery} className="mt-3">
-                <FormGroup>
-                  <Label for="recoveryEmail">Ingresa tu correo</Label>
-                  <Input
-                    type="email"
-                    id="recoveryEmail"
-                    value={recoveryEmail}
-                    onChange={(e) => setRecoveryEmail(e.target.value)}
-                    required
-                  />
-                </FormGroup>
-                <Button type="submit" color="success" block>
-                  Recuperar Contraseña
-                </Button>
-              </Form>
-            )}
-          </CardBody>
-        </Card>
+      <div className="glass-card">
+        <h1 className="login-title">
+          {showRecovery ? 'Recuperar Cuenta' : 'Bienvenido'}
+        </h1>
+        <p className="login-subtitle">
+          {showRecovery ? 'Ingresa tu correo registrado' : 'Sistema de Gestión Escolar'}
+        </p>
+
+        {errorMessage && (
+          <div className="error-message">{errorMessage}</div>
+        )}
+
+        {!showRecovery ? (
+          /* FORMULARIO DE INICIO DE SESIÓN */
+          <form onSubmit={handleLogin}>
+            <div className="form-group">
+              <label className="form-label">Correo Electrónico</label>
+              <input
+                type="email"
+                className="glass-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="usuario@escuela.edu"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Contraseña</label>
+              <input
+                type="password"
+                className="glass-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button type="submit" className="btn-login">
+              Ingresar
+            </button>
+
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => setShowRecovery(true)}
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          </form>
+        ) : (
+          /* FORMULARIO DE RECUPERACIÓN */
+          <form onSubmit={handlePasswordRecovery}>
+            <div className="form-group">
+              <label className="form-label">Tu Correo Electrónico</label>
+              <input
+                type="email"
+                className="glass-input"
+                value={recoveryEmail}
+                onChange={(e) => setRecoveryEmail(e.target.value)}
+                required
+                placeholder="usuario@escuela.edu"
+              />
+            </div>
+
+            <button type="submit" className="btn-login" style={{ background: '#10b981' }}>
+              Enviar Enlace
+            </button>
+
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => setShowRecovery(false)}
+            >
+              ← Volver al inicio
+            </button>
+          </form>
+        )}
+      </div>
+
+      <div className="login-footer">
+        © 2026 Lendy Bustamante. Todos los derechos reservados.
       </div>
     </div>
   );

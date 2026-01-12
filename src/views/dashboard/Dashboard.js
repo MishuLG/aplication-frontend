@@ -23,107 +23,117 @@ import {
     cilArrowBottom 
 } from '@coreui/icons';
 
-// Importamos la configuración global en lugar de hardcodear localhost
 import API_URL from '../../../config'; 
+import '../../css/dashboard.css'; 
 
-// Imágenes de ejemplo (Asegúrate de que estas rutas sean correctas en tu carpeta public)
+// Helper para obtener token
+const getToken = () => localStorage.getItem('token');
+
+// Imágenes estáticas
 const imagen1 = '/img/73dd40dc057fbb426a0f758bcd442c96.jpg';
 const imagen2 = '/img/back-to-school-2629361.jpg';
-// Placeholder si no tienes una 3ra imagen
-const imagen3 = 'https://via.placeholder.com/800x400?text=Sistema+Escolar'; 
 
 const Dashboard = () => {
     
-    // Estados de Datos
-    const [totalStudents, setTotalStudents] = useState(0); 
-    const [totalUsers, setTotalUsers] = useState(0); 
-    const [studentRegistrationsData, setStudentRegistrationsData] = useState({
+    // ESTADO ÚNICO PARA TODOS LOS DATOS
+    const [stats, setStats] = useState({
+        students: 0,
+        users: 0,
+        attendanceVal: "0%",
+        evaluations: 0
+    });
+
+    const [chartData, setChartData] = useState({
         labels: [],
         datasets: []
     });
 
-    // --- FUNCIONES DE CARGA DE DATOS ---
+    const [attendanceChart, setAttendanceChart] = useState({
+        labels: [],
+        data: []
+    });
 
-    const fetchTotalStudents = async () => {
-        try {
-            const response = await fetch(`${API_URL}/students`); 
-            if (response.ok) {
-                const data = await response.json();
-                if (Array.isArray(data)) setTotalStudents(data.length); 
-            }
-        } catch (error) { console.error("Error estudiantes:", error); }
-    };
-
-    const fetchTotalUsers = async () => {
-        try {
-            const response = await fetch(`${API_URL}/users`); // Asumiendo endpoint de usuarios
-            if (response.ok) {
-                const data = await response.json();
-                if (Array.isArray(data)) setTotalUsers(data.length);
-            }
-        } catch (error) { console.error("Error usuarios:", error); }
-    };
-
-    const fetchStudentRegistrations = async () => {
-        // Simulamos datos para el gráfico si el backend no devuelve la estructura exacta aún
-        // En producción, descomenta tu fetch original y ajusta.
-        const labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
-        const data = [10, 25, 15, 30, 45, 50]; 
-
-        setStudentRegistrationsData({
-            labels: labels, 
-            datasets: [{
-                label: 'Estudiantes',
-                backgroundColor: '#321fdb', // Azul primario minimalista
-                borderColor: '#321fdb',
-                borderWidth: 1,
-                data: data, 
-                barPercentage: 0.5 
-            }],
-        });
-    };
-
+    // CARGA DE DATOS REALES
     useEffect(() => {
-        fetchTotalStudents(); 
-        fetchTotalUsers(); 
-        fetchStudentRegistrations(); 
+        const fetchDashboardData = async () => {
+            try {
+                const response = await fetch(`${API_URL}/dashboard`, {
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // 1. Actualizar KPIs
+                    setStats({
+                        students: data.kpi.students,
+                        users: data.kpi.users,
+                        attendanceVal: data.kpi.attendance,
+                        evaluations: data.kpi.evaluations
+                    });
+
+                    // 2. Gráfica de Barras (Registro de Estudiantes)
+                    const regData = data.charts.registrations || [];
+                    const labels = regData.map(item => item.month); 
+                    const values = regData.map(item => parseInt(item.count)); 
+
+                    setChartData({
+                        labels: labels.length > 0 ? labels : ['Sin datos'], 
+                        datasets: [{
+                            label: 'Nuevos Estudiantes',
+                            backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                            borderRadius: 5,
+                            hoverBackgroundColor: '#4338ca',
+                            data: values.length > 0 ? values : [0], 
+                            barPercentage: 0.6 
+                        }],
+                    });
+
+                    // 3. Gráfica de Línea (Asistencia)
+                    const attData = data.charts.attendance || [];
+                    setAttendanceChart({
+                        labels: attData.length > 0 ? attData.map(i => i.day) : ['Lun', 'Mar', 'Mie', 'Jue', 'Vie'],
+                        data: attData.length > 0 ? attData.map(i => parseInt(i.value)) : [0, 0, 0, 0, 0]
+                    });
+                }
+            } catch (error) {
+                console.error("Error cargando dashboard:", error);
+            }
+        };
+
+        fetchDashboardData();
     }, []); 
 
-    // --- COMPONENTE INTERNO: TARJETA DE ESTADÍSTICA MINIMALISTA ---
-    const StatCard = ({ title, value, icon, color, percent, isIncrease }) => (
-        <CCard className={`mb-4 border-start-4 border-start-${color} shadow-sm`}>
-            <CCardBody className="p-4 d-flex justify-content-between align-items-center">
-                <div>
-                    <div className="text-medium-emphasis small text-uppercase fw-semibold">
-                        {title}
-                    </div>
-                    <div className="fs-2 fw-semibold text-dark">
-                        {value}
-                    </div>
-                    <div className={`small ${isIncrease ? 'text-success' : 'text-danger'} mt-1`}>
-                        <CIcon icon={isIncrease ? cilArrowTop : cilArrowBottom} size="sm"/> 
-                        <span className="ms-1 fw-semibold">{percent}%</span> 
-                        <span className="text-medium-emphasis ms-1">vs mes anterior</span>
+    // COMPONENTE TARJETA
+    const StatCard = ({ title, value, icon, gradient, percent, isIncrease }) => (
+        <CCard className="minimal-card mb-4">
+            <div className="stat-card-body">
+                <div className="stat-content">
+                    <h4>{title}</h4>
+                    <div className="value">{value}</div>
+                    <div className={`mt-2 small fw-bold ${isIncrease ? 'text-success' : 'text-danger'}`}>
+                        <CIcon icon={isIncrease ? cilArrowTop : cilArrowBottom} size="sm" />
+                        <span className="ms-1">{percent}%</span>
+                        <span className="text-muted fw-normal ms-1">vs mes pasado</span>
                     </div>
                 </div>
-                <div className={`bg-${color} text-white p-3 rounded-3`}>
-                    <CIcon icon={icon} size="xl" />
+                <div className={`stat-icon-wrapper ${gradient}`}>
+                    <CIcon icon={icon} />
                 </div>
-            </CCardBody>
+            </div>
         </CCard>
     );
 
     return (
         <CContainer fluid className="mt-4">
             
-            {/* --- SECCIÓN DE ESTADÍSTICAS (KPIs) --- */}
             <CRow>
                 <CCol sm={6} lg={3}>
                     <StatCard 
                         title="Total Estudiantes" 
-                        value={totalStudents} 
+                        value={stats.students} 
                         icon={cilPeople} 
-                        color="primary" 
+                        gradient="bg-gradient-primary"
                         percent="12.5" 
                         isIncrease={true} 
                     />
@@ -131,53 +141,55 @@ const Dashboard = () => {
                 <CCol sm={6} lg={3}>
                     <StatCard 
                         title="Usuarios Activos" 
-                        value={totalUsers} 
+                        value={stats.users} 
                         icon={cilUser} 
-                        color="info" 
+                        gradient="bg-gradient-info"
                         percent="4.2" 
                         isIncrease={true} 
                     />
                 </CCol>
                 <CCol sm={6} lg={3}>
                     <StatCard 
-                        title="Asistencia Promedio" 
-                        value="95.4%" 
+                        title="Asistencia Global" 
+                        value={stats.attendanceVal} 
                         icon={cilCheckCircle} 
-                        color="success" 
+                        gradient="bg-gradient-success"
                         percent="1.8" 
                         isIncrease={true} 
                     />
                 </CCol>
                 <CCol sm={6} lg={3}>
                     <StatCard 
-                        title="Evaluaciones Pend." 
-                        value="12" 
+                        title="Evaluaciones" 
+                        value={stats.evaluations} 
                         icon={cilTask} 
-                        color="warning" 
+                        gradient="bg-gradient-warning"
                         percent="2.5" 
                         isIncrease={false} 
                     />
                 </CCol>
             </CRow>
 
-            {/* --- SECCIÓN DE GRÁFICAS --- */}
             <CRow>
-                {/* Gráfico Principal: Crecimiento Estudiantil */}
+                {/* GRÁFICO DE BARRAS DINÁMICO */}
                 <CCol xs={12} lg={8} className="mb-4">
-                    <CCard className="h-100 shadow-sm border-0">
-                        <CCardHeader className="bg-transparent border-0 d-flex justify-content-between align-items-center mt-2">
-                            <h5 className="mb-0 text-dark">Registro de Estudiantes</h5>
-                            <small className="text-medium-emphasis">Últimos 6 meses</small>
+                    <CCard className="minimal-card h-100">
+                        <CCardHeader className="minimal-header d-flex justify-content-between align-items-center">
+                            <h5>Registro de Estudiantes</h5>
+                            <small className="text-muted">Últimos 6 meses</small>
                         </CCardHeader>
-                        <CCardBody>
+                        <CCardBody className="p-4">
                             <CChart 
                                 type="bar" 
-                                data={studentRegistrationsData} 
+                                data={chartData} 
                                 options={{
                                     plugins: { legend: { display: false } },
                                     scales: {
                                         x: { grid: { display: false } },
-                                        y: { grid: { borderDash: [5, 5] } } // Líneas punteadas minimalistas
+                                        y: { 
+                                            grid: { borderDash: [5, 5], color: '#f3f4f6' },
+                                            ticks: { stepSize: 1 } // Pasos enteros
+                                        } 
                                     },
                                     maintainAspectRatio: false
                                 }}
@@ -187,57 +199,53 @@ const Dashboard = () => {
                     </CCard>
                 </CCol>
 
-                {/* Gráfico Secundario / Panel Lateral: Asistencia */}
+                {/* PANEL LATERAL */}
                 <CCol xs={12} lg={4} className="mb-4">
-                    <CCard className="shadow-sm border-0 mb-4">
-                        <CCardHeader className="bg-transparent border-0 mt-2">
-                            <h5 className="mb-0 text-dark">Tendencia de Asistencia</h5>
+                    <CCard className="minimal-card mb-4">
+                        <CCardHeader className="minimal-header">
+                            <h5>Tendencia Asistencia</h5>
                         </CCardHeader>
-                        <CCardBody>
+                        <CCardBody className="p-4">
                             <CChart 
                                 type="line" 
                                 data={{
-                                    labels: ['Lun', 'Mar', 'Mie', 'Jue', 'Vie'],
+                                    labels: attendanceChart.labels,
                                     datasets: [{
                                         label: 'Asistencia',
-                                        backgroundColor: 'rgba(46, 184, 92, 0.2)',
-                                        borderColor: '#2eb85c',
-                                        pointBackgroundColor: '#2eb85c',
-                                        data: [90, 95, 98, 92, 96],
-                                        fill: true
+                                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                        borderColor: '#10b981',
+                                        pointBackgroundColor: '#fff',
+                                        pointBorderColor: '#10b981',
+                                        pointRadius: 4,
+                                        data: attendanceChart.data,
+                                        fill: true,
+                                        tension: 0.4
                                     }]
                                 }}
                                 options={{
                                     plugins: { legend: { display: false } },
-                                    scales: { x: { display: false }, y: { display: false } }, // Gráfico limpio sin ejes
-                                    elements: { line: { tension: 0.4 } } // Curvas suaves
+                                    scales: { x: { display: false }, y: { display: false } },
+                                    layout: { padding: 10 }
                                 }}
-                                style={{ height: '150px' }}
+                                style={{ height: '120px' }}
                             />
-                            <div className="mt-3">
-                                <div className="d-flex justify-content-between mb-1">
-                                    <span className="text-medium-emphasis">Meta Semanal</span>
-                                    <span className="fw-semibold">96%</span>
+                             <div className="mt-4">
+                                <div className="d-flex justify-content-between mb-2 small fw-bold text-muted">
+                                    <span>Meta Semanal</span>
+                                    <span>100%</span>
                                 </div>
-                                <CProgress thin color="success" value={96} />
+                                <CProgress thin color="success" value={96} style={{height: '6px', borderRadius: '10px'}} />
                             </div>
                         </CCardBody>
                     </CCard>
 
-                    {/* Carousel pequeño */}
-                    <CCard className="shadow-sm border-0 overflow-hidden">
+                    <CCard className="minimal-card border-0">
                         <CCarousel controls indicators interval={5000} transition="crossfade">
                             <CCarouselItem>
-                                <CImage className="d-block w-100" src={imagen1} alt="Slide 1" style={{height: '200px', objectFit: 'cover'}} />
-                                <CCarouselCaption className="d-none d-md-block bg-dark bg-opacity-50 p-2 rounded">
-                                    <h6>Gestión Escolar</h6>
-                                </CCarouselCaption>
+                                <CImage className="d-block w-100 rounded-bottom-4" src={imagen1} alt="Slide 1" style={{height: '220px', objectFit: 'cover', borderRadius: '20px'}} />
                             </CCarouselItem>
                             <CCarouselItem>
-                                <CImage className="d-block w-100" src={imagen2} alt="Slide 2" style={{height: '200px', objectFit: 'cover'}} />
-                                <CCarouselCaption className="d-none d-md-block bg-dark bg-opacity-50 p-2 rounded">
-                                    <h6>Monitoreo</h6>
-                                </CCarouselCaption>
+                                <CImage className="d-block w-100 rounded-bottom-4" src={imagen2} alt="Slide 2" style={{height: '220px', objectFit: 'cover', borderRadius: '20px'}} />
                             </CCarouselItem>
                         </CCarousel>
                     </CCard>
