@@ -6,7 +6,7 @@ const AppFooter = () => {
   return (
     <CFooter className="glass-footer border-0">
       <div>
-        <span className="ms-1">&copy; 2026 <span className="fw-bold">LICEO</span>.</span>
+        <span className="ms-1">&copy; 2026 <span className="fw-bold">ESCUELA</span>.</span>
         <span className="ms-1 text-opacity-75">Todos los derechos reservados.</span>
       </div>
       <div className="ms-auto">

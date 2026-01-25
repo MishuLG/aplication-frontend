@@ -558,7 +558,6 @@ const Users = () => {
                             <CFormSelect label="Estado *" name="status" value={formData.status} onChange={handleInputChange}>
                                 <option value="active">Activo</option>
                                 <option value="inactive">Inactivo</option>
-                                <option value="suspended">Suspendido</option>
                             </CFormSelect>
                         </CCol>
                     </CRow>

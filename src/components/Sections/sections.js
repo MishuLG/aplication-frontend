@@ -32,45 +32,57 @@ import {
   cilTrash, 
   cilSearch, 
   cilList, 
-  cilClock, 
-  cilRoom
+  cilSchool, 
+  cilCalendar
 } from '@coreui/icons';
-import API_URL from '../../../config';
+
+// --- CORRECCIÓN: URL DIRECTA PARA EVITAR ERROR DE IMPORTACIÓN ---
+const API_URL = 'http://localhost:4000/api';
+// ---------------------------------------------------------------
 
 const Sections = () => {
   const [sections, setSections] = useState([]);
-  const [schedules, setSchedules] = useState([]); // Lista para el Select (Mejora UX)
   
+  // CAMBIO NECESARIO: Cargamos Grados y Años en lugar de Horarios
+  const [grades, setGrades] = useState([]);
+  const [schoolYears, setSchoolYears] = useState([]);
+  
+  // El formulario ahora pide lo que el backend necesita
   const [formData, setFormData] = useState({
-    id_class_schedules: '',
     num_section: '',
+    id_grade: '',
+    id_school_year: ''
   });
 
-  // Estados de la Interfaz
+  // Estados de la Interfaz (TU CÓDIGO ORIGINAL)
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedSection, setSelectedSection] = useState(null);
-  const [filter, setFilter] = useState({ id_class_schedules: '', num_section: '' });
   
-  // Validaciones
+  // Filtro adaptado para buscar por nombre o grado
+  const [filter, setFilter] = useState({ num_section: '', grade_name: '' });
+  
+  // Validaciones (TU CÓDIGO ORIGINAL)
   const [errors, setErrors] = useState({});
   const [alertBox, setAlertBox] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Modal Borrado
+  // Modal Borrado (TU CÓDIGO ORIGINAL)
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [idToDelete, setIdToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // URLs
   const sectionsUrl = `${API_URL}/sections`;
-  const schedulesUrl = `${API_URL}/class_schedules`;
+  const gradesUrl = `${API_URL}/grades`;
+  const yearsUrl = `${API_URL}/school_years`;
 
   useEffect(() => {
     fetchSections();
-    fetchSchedules();
+    fetchCatalogs(); // Cargar listas de grados y años
   }, []);
 
-  // --- LÓGICA DE DATOS (Fetch Seguro con Token) ---
+  // --- LÓGICA DE DATOS (TU FETCH SEGURO) ---
 
   const authenticatedFetch = async (url, options = {}) => {
     const token = localStorage.getItem('token');
@@ -81,7 +93,7 @@ const Sections = () => {
     
     if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('token');
-        window.location.href = '#/login';
+        // window.location.href = '#/login'; 
         throw new Error('Sesión expirada.');
     }
     return response;
@@ -102,46 +114,35 @@ const Sections = () => {
     }
   };
 
-  const fetchSchedules = async () => {
+  const fetchCatalogs = async () => {
     try {
-        const res = await authenticatedFetch(schedulesUrl);
-        const data = await res.json();
-        if (Array.isArray(data)) setSchedules(data);
-    } catch (err) { console.error("Error cargando horarios", err); }
-  };
-
-  // --- VALIDACIONES Y MANEJO DE ERRORES (Lógica Original Preservada) ---
-
-  const parsePostgresUniqueError = (err) => {
-    const result = { field: 'registro', value: null, message: 'Valor duplicado' };
-    try {
-      if (!err) return result;
-      if (typeof err.detail === 'string') {
-        const m = err.detail.match(/\(([^)]+)\)=\(([^)]+)\)/);
-        if (m) {
-          result.field = m[1] || result.field;
-          result.value = m[2] || null;
-          result.message = result.value ? `Ya existe: ${result.value}` : `Valor duplicado en ${result.field}`;
-          return result;
+        const [resGrades, resYears] = await Promise.all([
+            authenticatedFetch(gradesUrl),
+            authenticatedFetch(yearsUrl)
+        ]);
+        
+        if (resGrades.ok) setGrades(await resGrades.json());
+        if (resYears.ok) {
+            const years = await resYears.json();
+            setSchoolYears(years);
+            // Auto-seleccionar año activo para facilitar
+            const active = years.find(y => y.school_year_status === 'Activo');
+            if (active) {
+                setFormData(prev => ({ ...prev, id_school_year: active.id_school_year }));
+            }
         }
-      }
-      if (err.constraint && typeof err.constraint === 'string') {
-        if (/num_section/i.test(err.constraint)) result.field = 'num_section';
-        else if (/id_class/i.test(err.constraint)) result.field = 'id_class_schedules';
-        result.message = `Dato duplicado: ${result.field}`;
-      }
-      if (err.message) result.message = err.message;
-    } catch (e) {}
-    return result;
+    } catch (err) { console.error("Error cargando catálogos", err); }
   };
+
+  // --- MANEJADORES ---
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     let v = value;
     
-    // Validación estricta de caracteres mientras escribe (Regex original)
+    // Tu validación de caracteres original
     if (name === 'num_section') {
-      v = v.replace(/[^a-zA-Z0-9\-_]/g, ''); 
+      v = v.replace(/[^a-zA-Z0-9\-_ ]/g, ''); 
       if (v.length > 20) v = v.slice(0, 20);
     }
     
@@ -150,49 +151,31 @@ const Sections = () => {
     setAlertBox(null);
   };
 
-  const handleBlur = (e) => {
-      const { name, value } = e.target;
-      if (!value || value.trim() === '') {
-          setErrors(prev => ({ ...prev, [name]: 'Este campo es obligatorio.' }));
-      }
-  };
-
   const validateForm = () => {
     const newErrors = {};
     let isValid = true;
 
-    if (!formData.id_class_schedules) {
-        newErrors.id_class_schedules = 'Debe asignar un horario.';
+    // Validamos los campos que ahora son obligatorios
+    if (!formData.id_grade) {
+        newErrors.id_grade = 'Debe seleccionar un Grado.';
+        isValid = false;
+    }
+    if (!formData.id_school_year) {
+        newErrors.id_school_year = 'Debe seleccionar un Año Escolar.';
         isValid = false;
     }
     
     if (!formData.num_section || formData.num_section.trim() === '') {
-        newErrors.num_section = 'El número de sección es obligatorio.';
-        isValid = false;
-    } else if (!/^[a-zA-Z0-9\-_]+$/.test(formData.num_section)) {
-        newErrors.num_section = 'Caracteres inválidos (solo letras, números, - y _).';
-        isValid = false;
-    }
-
-    // Validación pre-envío de duplicados en el frontend
-    const duplicate = sections.find(s => 
-        String(s.id_class_schedules) === String(formData.id_class_schedules) &&
-        s.num_section === formData.num_section &&
-        (!editMode || s.id_section !== selectedSection?.id_section)
-    );
-
-    if (duplicate) {
-        newErrors.num_section = 'Ya existe esta sección en este horario.';
-        setAlertBox('Error: Sección duplicada para el horario seleccionado.');
+        newErrors.num_section = 'El identificador de sección es obligatorio.';
         isValid = false;
     }
 
     setErrors(newErrors);
-    if (!isValid && !alertBox) setAlertBox('Por favor, corrija los errores.');
+    if (!isValid && !alertBox) setAlertBox('Por favor, complete los campos obligatorios.');
     return isValid;
   };
 
-  // --- CRUD ---
+  // --- CRUD (CON LA LÓGICA DEL NUEVO BACKEND) ---
 
   const handleSaveSection = async () => {
     if (isSaving) return;
@@ -203,11 +186,14 @@ const Sections = () => {
 
     try {
       const method = editMode ? 'PUT' : 'POST';
+      // Para editar, el backend necesita el ID en la URL
       const url = editMode && selectedSection ? `${sectionsUrl}/${selectedSection.id_section}` : sectionsUrl;
 
+      // Enviamos solo lo que la base de datos espera
       const payload = {
-        id_class_schedules: Number(formData.id_class_schedules),
         num_section: String(formData.num_section).trim(),
+        id_grade: Number(formData.id_grade),
+        id_school_year: Number(formData.id_school_year)
       };
 
       const response = await authenticatedFetch(url, {
@@ -216,30 +202,8 @@ const Sections = () => {
       });
 
       if (!response.ok) {
-        // Lógica de parseo de errores del backend preservada
-        let errorText = `Error ${response.status}`;
-        let errorData = null;
-        try {
-            const ct = response.headers.get('content-type') || '';
-            if (ct.includes('application/json')) {
-                errorData = await response.json();
-                if (errorData.message) errorText = errorData.message;
-            } else {
-                errorText = await response.text();
-            }
-        } catch (_) {}
-
-        // Detectar duplicados del backend
-        const textLower = (errorText || '').toLowerCase();
-        if (response.status === 409 || /ya existe|duplicate/.test(textLower) || (errorData && errorData.code === '23505')) {
-            const parsed = parsePostgresUniqueError(errorData || { detail: errorText });
-            const msg = parsed.message || 'Ya existe una sección con estos datos.';
-            setErrors(prev => ({ ...prev, num_section: msg }));
-            setAlertBox(msg);
-        } else {
-            setAlertBox(errorText || 'Error del servidor.');
-        }
-        
+        const data = await response.json();
+        setAlertBox(data.message || 'Error al guardar.');
         setIsSaving(false);
         return;
       }
@@ -248,7 +212,7 @@ const Sections = () => {
       handleCloseModal();
     } catch (err) {
       console.error(err);
-      if (err.message !== 'Sesión expirada.') setAlertBox(err.message || 'Error de conexión');
+      setAlertBox(err.message || 'Error de conexión');
     } finally {
       setIsSaving(false);
     }
@@ -285,9 +249,11 @@ const Sections = () => {
 
   const handleEditSection = (section) => {
     setSelectedSection(section);
+    // Cargamos los datos en el formulario para editar
     setFormData({
-      id_class_schedules: section.id_class_schedules,
       num_section: section.num_section,
+      id_grade: section.id_grade,
+      id_school_year: section.id_school_year
     });
     setEditMode(true);
     setErrors({});
@@ -297,47 +263,38 @@ const Sections = () => {
   const handleCloseModal = () => {
     if (isSaving) return;
     setShowModal(false);
-    setFormData({ id_class_schedules: '', num_section: '' });
+    // Reiniciamos formulario (manteniendo año activo)
+    const activeYear = schoolYears.find(y => y.school_year_status === 'Activo');
+    setFormData({ 
+        num_section: '', 
+        id_grade: '', 
+        id_school_year: activeYear ? activeYear.id_school_year : '' 
+    });
     setEditMode(false);
     setSelectedSection(null);
     setErrors({});
     setAlertBox(null);
   };
 
-  // Helpers de visualización (Resolución de IDs a Texto)
-  const getScheduleLabel = (id) => {
-      const s = schedules.find(item => item.id_class_schedules === id);
-      return s ? `${s.day_of_week} | ${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)}` : `ID: ${id}`;
-  };
-
-  const getClassroomLabel = (id) => {
-      const s = schedules.find(item => item.id_class_schedules === id);
-      return s ? s.classroom : '-';
-  };
-
   // Filtros
   const filteredSections = sections.filter((section) => {
-    const classScheduleId = section.id_class_schedules ? String(section.id_class_schedules) : '';
     const sectionNumber = section.num_section ? String(section.num_section) : '';
-    const scheduleLabel = getScheduleLabel(section.id_class_schedules).toLowerCase();
+    const gradeName = section.Grade ? section.Grade.name_grade.toLowerCase() : '';
     
-    // Búsqueda inteligente: por número de sección o texto del horario
     const matchesSection = sectionNumber.toLowerCase().includes(filter.num_section.toLowerCase());
-    const matchesSchedule = filter.id_class_schedules 
-        ? scheduleLabel.includes(filter.id_class_schedules.toLowerCase()) || classScheduleId.includes(filter.id_class_schedules)
-        : true;
+    const matchesGrade = gradeName.includes(filter.grade_name.toLowerCase());
 
-    return matchesSection && matchesSchedule;
+    return matchesSection && matchesGrade;
   });
 
   const totalSections = sections.length;
-  // KPIs simples
-  const uniqueSchedules = new Set(sections.map(s => s.id_class_schedules)).size;
+  // KPI: Cantidad de Grados distintos atendidos
+  const uniqueGrades = new Set(sections.map(s => s.id_grade)).size;
 
   return (
     <div className="container-fluid mt-4">
       
-      {/* --- KPIs (Minimalistas) --- */}
+      {/* --- KPIs (TU DISEÑO ORIGINAL) --- */}
       <CRow className="mb-4">
           <CCol sm={6}>
               <CCard className="border-start-4 border-start-primary shadow-sm h-100">
@@ -354,10 +311,10 @@ const Sections = () => {
               <CCard className="border-start-4 border-start-info shadow-sm h-100">
                   <CCardBody className="d-flex justify-content-between align-items-center p-3">
                       <div>
-                          <div className="text-medium-emphasis small text-uppercase fw-bold">Horarios Ocupados</div>
-                          <div className="fs-4 fw-semibold text-body">{uniqueSchedules}</div>
+                          <div className="text-medium-emphasis small text-uppercase fw-bold">Grados Atendidos</div>
+                          <div className="fs-4 fw-semibold text-body">{uniqueGrades}</div>
                       </div>
-                      <CIcon icon={cilClock} size="xl" className="text-info" />
+                      <CIcon icon={cilSchool} size="xl" className="text-info" />
                   </CCardBody>
               </CCard>
           </CCol>
@@ -384,7 +341,7 @@ const Sections = () => {
                         </CInputGroupText>
                         <CFormInput 
                             className="bg-transparent border-start-0"
-                            placeholder="Filtrar por Número de Sección..." 
+                            placeholder="Filtrar por Identificador (A, B...)" 
                             name="num_section"
                             value={filter.num_section} 
                             onChange={(e) => setFilter({...filter, num_section: e.target.value})} 
@@ -394,14 +351,14 @@ const Sections = () => {
                 <CCol md={6}>
                     <CInputGroup>
                         <CInputGroupText className="bg-transparent text-medium-emphasis border-end-0">
-                            <CIcon icon={cilClock} />
+                            <CIcon icon={cilSchool} />
                         </CInputGroupText>
                         <CFormInput 
                             className="bg-transparent border-start-0"
-                            placeholder="Buscar en horario (Día, Hora)..." 
-                            name="id_class_schedules"
-                            value={filter.id_class_schedules} 
-                            onChange={(e) => setFilter({...filter, id_class_schedules: e.target.value})} 
+                            placeholder="Buscar por Grado (1er, 2do...)" 
+                            name="grade_name"
+                            value={filter.grade_name} 
+                            onChange={(e) => setFilter({...filter, grade_name: e.target.value})} 
                         />
                     </CInputGroup>
                 </CCol>
@@ -412,9 +369,9 @@ const Sections = () => {
               <CTableHead>
                 <CTableRow>
                   <CTableHeaderCell className="text-center" style={{width: '60px'}}><CIcon icon={cilList} /></CTableHeaderCell>
-                  <CTableHeaderCell>Número de Sección</CTableHeaderCell>
-                  <CTableHeaderCell>Horario Asignado</CTableHeaderCell>
-                  <CTableHeaderCell>Aula</CTableHeaderCell>
+                  <CTableHeaderCell>Sección (Identificador)</CTableHeaderCell>
+                  <CTableHeaderCell>Grado Académico</CTableHeaderCell>
+                  <CTableHeaderCell>Año Escolar</CTableHeaderCell>
                   <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
@@ -425,18 +382,22 @@ const Sections = () => {
                         <CBadge color="primary" shape="rounded-pill">#{section.id_section}</CBadge>
                     </CTableDataCell>
                     <CTableDataCell>
-                        <div className="fw-bold text-body fs-5">{section.num_section}</div>
+                        <div className="fw-bold text-body fs-5">Sección "{section.num_section}"</div>
+                        <div className="small text-muted">Capacidad: {section.capacity || 30}</div>
                     </CTableDataCell>
                     <CTableDataCell>
                         <div className="d-flex align-items-center text-body">
-                            <CIcon icon={cilClock} className="me-2 text-medium-emphasis"/>
-                            {getScheduleLabel(section.id_class_schedules)}
+                            <CIcon icon={cilSchool} className="me-2 text-medium-emphasis"/>
+                            {section.Grade ? section.Grade.name_grade : 'Sin Grado'}
                         </div>
                     </CTableDataCell>
                     <CTableDataCell>
                         <div className="d-flex align-items-center text-body">
-                            <CIcon icon={cilRoom} className="me-2 text-medium-emphasis"/>
-                            {getClassroomLabel(section.id_class_schedules)}
+                            <CIcon icon={cilCalendar} className="me-2 text-medium-emphasis"/>
+                            {section.SchoolYear ? section.SchoolYear.name_period : 'N/A'}
+                            {section.SchoolYear?.school_year_status === 'Activo' && 
+                                <CBadge color="success" className="ms-2" size="sm">Activo</CBadge>
+                            }
                         </div>
                     </CTableDataCell>
                     <CTableDataCell className="text-end">
@@ -452,7 +413,7 @@ const Sections = () => {
                 {filteredSections.length === 0 && (
                     <CTableRow>
                         <CTableDataCell colSpan="5" className="text-center py-4 text-medium-emphasis">
-                            No hay secciones registradas.
+                            No hay secciones registradas para el filtro actual.
                         </CTableDataCell>
                     </CTableRow>
                 )}
@@ -486,39 +447,58 @@ const Sections = () => {
         <CModalBody>
           {alertBox && <CAlert color="danger">{alertBox}</CAlert>}
           <CForm>
+            {/* SELECT DE AÑO */}
+            <div className="mb-3">
+               <CFormSelect
+                 label="Año Escolar *"
+                 name="id_school_year"
+                 value={formData.id_school_year}
+                 onChange={handleInputChange}
+                 invalid={!!errors.id_school_year}
+               >
+                 <option value="">Seleccione Año...</option>
+                 {schoolYears.map((y) => (
+                   <option key={y.id_school_year} value={y.id_school_year}>
+                     {y.name_period} ({y.school_year_status})
+                   </option>
+                 ))}
+               </CFormSelect>
+               {errors.id_school_year && <div className="text-danger small mt-1">{errors.id_school_year}</div>}
+            </div>
+
+            {/* SELECT DE GRADO */}
+            <div className="mb-3">
+               <CFormSelect
+                 label="Grado Académico *"
+                 name="id_grade"
+                 value={formData.id_grade}
+                 onChange={handleInputChange}
+                 invalid={!!errors.id_grade}
+               >
+                 <option value="">Seleccione Grado...</option>
+                 {grades.map((g) => (
+                   <option key={g.id_grade} value={g.id_grade}>
+                     {g.name_grade}
+                   </option>
+                 ))}
+               </CFormSelect>
+               {errors.id_grade && <div className="text-danger small mt-1">{errors.id_grade}</div>}
+            </div>
+
+            {/* INPUT DE NOMBRE/IDENTIFICADOR */}
             <div className="mb-3">
                 <CFormInput
-                  label="Número de Sección *"
+                  label="Identificador de Sección *"
                   name="num_section"
                   placeholder="Ej: A, B, 101..."
                   value={formData.num_section}
                   onChange={handleInputChange}
-                  onBlur={handleBlur}
                   invalid={!!errors.num_section}
+                  text="Solo el identificador (la letra o número)."
                 />
                 {errors.num_section && <div className="text-danger small mt-1">{errors.num_section}</div>}
             </div>
             
-            <div className="mb-3">
-                <div className="text-medium-emphasis small mb-1">
-                    Seleccione un horario disponible para esta sección.
-                </div>
-                <CFormSelect
-                  label="Horario *"
-                  name="id_class_schedules"
-                  value={formData.id_class_schedules}
-                  onChange={handleInputChange}
-                  invalid={!!errors.id_class_schedules}
-                >
-                  <option value="">Seleccionar Horario...</option>
-                  {schedules.map((s) => (
-                    <option key={s.id_class_schedules} value={s.id_class_schedules}>
-                      {s.day_of_week} | {s.start_time.slice(0,5)} - {s.end_time.slice(0,5)} ({s.classroom})
-                    </option>
-                  ))}
-                </CFormSelect>
-                {errors.id_class_schedules && <div className="text-danger small mt-1">{errors.id_class_schedules}</div>}
-            </div>
           </CForm>
         </CModalBody>
         <CModalFooter>

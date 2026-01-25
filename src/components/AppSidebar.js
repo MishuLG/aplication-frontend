@@ -42,7 +42,7 @@ const AppSidebar = () => {
             className="d-inline-block align-middle"
           />
           {/* Texto LICEO */}
-          <span className="sidebar-brand-text">LICEO</span>
+          <span className="sidebar-brand-text">ESCUELA</span>
         </CSidebarBrand>
         
         <CCloseButton

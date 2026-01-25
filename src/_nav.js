@@ -1,22 +1,16 @@
 import React from 'react'
 import CIcon from '@coreui/icons-react'
 import {
-  cilBell,
-  cilCalculator,
-  cilChartPie,
-  cilCursor,
-  cilDescription,
-  cilDrop,
-  cilNotes,
-  cilPencil,
-  cilPuzzle,
   cilSpeedometer,
-  cilStar,
-  cilGroup,
   cilUser,
   cilUserFollow,
+  cilPencil,
   cilMoodVeryGood,
-  cilFile
+  cilNotes,
+  cilFile,
+  cilCalendar,
+  cilCheckCircle,
+  cilPeople
 } from '@coreui/icons'
 import { CNavGroup, CNavItem, CNavTitle } from '@coreui/react'
 
@@ -31,69 +25,73 @@ const _nav = [
       text: 'NEW',
     },
   },
+  
+  // --- NUEVA SECCIÓN: GESTIÓN ACADÉMICA (Ciclo Escolar) ---
   {
     component: CNavTitle,
-    name: 'record',
+    name: 'Gestión Académica',
   },
   {
     component: CNavItem,
-    name: 'ususarios',
+    name: 'Control Año Escolar',
+    to: '/school_year',
+    icon: <CIcon icon={cilCalendar} customClassName="nav-icon" />,
+  },
+ {
+    component: CNavGroup,
+    name: 'Inscripciones',
+    to: '/enrollments',
+    icon: <CIcon icon={cilNotes} customClassName="nav-icon" />,
+    items: [
+      {
+        component: CNavItem,
+        name: 'Directorio Estudiantil',
+        to: '/students',
+      },
+      // --- AGREGA ESTO SI NO ESTÁ ---
+      {
+        component: CNavItem,
+        name: 'Validar Ingresos',
+        to: '/enrollments/validate',
+      },
+    ],
+  },
+  {
+    component: CNavItem,
+    name: 'Boletines y Reportes', // Reutilizamos gradeReports
+    to: '/grade_reports',
+    icon: <CIcon icon={cilFile} customClassName="nav-icon" />,
+  },
+
+  // --- CONFIGURACIÓN Y MANTENIMIENTO ---
+  {
+    component: CNavTitle,
+    name: 'Configuración',
+  },
+  {
+    component: CNavItem,
+    name: 'Usuarios y Tutores',
     to: '/users',
     icon: <CIcon icon={cilUser} customClassName="nav-icon" />,
   },
   {
-    component: CNavTitle,
-    name: 'herramientas',
-  },
- 
-  {
     component: CNavGroup,
-    name: 'Registro',
-    to: '/',
-    icon: <CIcon icon={cilUserFollow} customClassName="nav-icon" />,
-    items: [
-      {
-        component: CNavItem,
-        name: 'Estudiantes',
-        to: '/students',
-      },
-      {
-        component: CNavItem,
-        name: 'Tutores',
-        to: '/tutors',
-      },
-    ],
-  },
-
-  {
-    component: CNavGroup,
-    name: 'Academico',
-    to: '/buttons',
+    name: 'Carga Académica',
     icon: <CIcon icon={cilPencil} customClassName="nav-icon" />,
     items: [
       {
         component: CNavItem,
-        name: 'secciones',
+        name: 'Secciones',
         to: '/sections',
       },
       {
         component: CNavItem,
-        name: 'Materias',
+        name: 'Materias (Pensum)',
         to: '/subjects',
       },
       {
         component: CNavItem,
-        name: 'Materias Inscritas',
-        to: '/subjects_taken',
-      },
-      {
-        component: CNavItem,
-        name: 'Año Escolar',
-        to: '/school_year',
-      },
-      {
-        component: CNavItem,
-        name: 'Horario de Clases',
+        name: 'Horarios',
         to: '/class_schedules',
       },
     ],
@@ -105,28 +103,10 @@ const _nav = [
     icon: <CIcon icon={cilMoodVeryGood} customClassName="nav-icon" />
   },
   {
-    component: CNavGroup,
-    name: 'Calificaciones',
+    component: CNavItem,
+    name: 'Evaluaciones',
+    to: '/evaluations',
     icon: <CIcon icon={cilNotes} customClassName="nav-icon" />,
-    items: [
-      {
-        component: CNavItem,
-        name: 'Evaluaciones',
-        to: '/evaluations',
-      },
-    ],
-  },
-  {
-    component: CNavGroup,
-    name: 'Boletines',
-    icon: <CIcon icon={cilFile} customClassName="nav-icon" />,
-    items: [
-      {
-        component: CNavItem,
-        name: 'Informes de calificaciones',
-        to: '/grade_reports',
-      },
-    ],
   },
 ]
 

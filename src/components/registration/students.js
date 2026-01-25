@@ -17,496 +17,419 @@ import {
   CModalFooter,
   CForm,
   CFormInput,
-  CFormTextarea,
   CFormSelect,
+  CFormTextarea,
   CAlert,
-  CRow,
-  CCol,
-  CAvatar,
-  CBadge,
   CInputGroup,
-  CInputGroupText
+  CInputGroupText,
+  CBadge
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
-import { 
-  cilPlus, 
-  cilPencil, 
-  cilTrash, 
-  cilPeople, 
-  cilSearch, 
-  cilSchool, 
-  cilUser,
-  cilMoodGood,
-  cilMoodVeryGood
-} from '@coreui/icons';
-import API_URL from '../../../config';
+import { cilPlus, cilPencil, cilTrash, cilSearch, cilUser } from '@coreui/icons';
+// import API_URL from '../../config'; // Descomenta si usas archivo config
+const API_URL = 'http://localhost:4000/api';
 
 const Students = () => {
+  // --- ESTADOS DE DATOS ---
   const [students, setStudents] = useState([]);
+  const [tutors, setTutors] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [schoolYears, setSchoolYears] = useState([]);
   
-  // Listas para Selects
-  const [tutorsList, setTutorsList] = useState([]);
-  const [sectionsList, setSectionsList] = useState([]);
-  const [schoolYearsList, setSchoolYearsList] = useState([]);
-  const [usersList, setUsersList] = useState([]); 
+  // --- ESTADOS DE FILTRO ---
+  const [selectedYearFilter, setSelectedYearFilter] = useState('');
+  const [filter, setFilter] = useState({ first_name_student: '' });
 
+  // --- ESTADOS DE UI/FORMULARIO ---
   const [formData, setFormData] = useState({
-    id_tutor: '',
-    id_section: '',
-    id_school_year: '',
     first_name_student: '',
     last_name_student: '',
     date_of_birth_student: '',
-    health_record: '',
-    gender: '',
+    gender: 'M',
     street: '',
     city: '',
     zip_code: '',
+    health_record: '',
+    id_tutor: '',
+    id_section: '',
+    id_school_year: ''
   });
 
-  // UI States
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [filter, setFilter] = useState({ first_name_student: '' });
-  
-  // Validaciones
-  const [errors, setErrors] = useState({});
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [alertBox, setAlertBox] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
 
-  // Modal Borrado
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [idToDelete, setIdToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [studentToDelete, setStudentToDelete] = useState(null);
 
   const studentsUrl = `${API_URL}/students`;
+  const tutorsUrl = `${API_URL}/tutors`;
+  const sectionsUrl = `${API_URL}/sections`;
+  const schoolYearsUrl = `${API_URL}/school_years`;
 
-  // Campos requeridos
-  const requiredFields = [
-    'id_tutor',
-    'id_section',
-    'id_school_year',
-    'first_name_student',
-    'last_name_student',
-    'date_of_birth_student',
-    'gender',
-    'street',
-    'city',
-    'zip_code',
-  ];
-
+  // --- EFECTOS ---
   useEffect(() => {
-    fetchAllData();
+    fetchInitialData();
   }, []);
 
-  const fetchAllData = async () => {
-    try {
-        await fetchStudents();
-        await fetchDependencies(`${API_URL}/tutors`, setTutorsList);
-        await fetchDependencies(`${API_URL}/users`, setUsersList);
-        await fetchDependencies(`${API_URL}/sections`, setSectionsList);
-        await fetchDependencies(`${API_URL}/school_years`, setSchoolYearsList);
-    } catch (error) { console.error(error); }
+  useEffect(() => {
+    fetchStudents();
+  }, [selectedYearFilter]);
+
+  // --- FETCH DATA ---
+  const authenticatedFetch = async (url, options = {}) => {
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return fetch(url, { ...options, headers });
   };
 
-  const fetchDependencies = async (url, setter) => {
-      try {
-          const res = await fetch(url);
-          if (res.ok) setter(await res.json());
-      } catch (e) { console.error(`Error fetching ${url}`, e); }
+  const fetchInitialData = async () => {
+    try {
+      const [resTutors, resSections, resYears] = await Promise.all([
+        authenticatedFetch(tutorsUrl),
+        authenticatedFetch(sectionsUrl),
+        authenticatedFetch(schoolYearsUrl)
+      ]);
+
+      if (resTutors.ok) setTutors(await resTutors.json());
+      if (resSections.ok) setSections(await resSections.json());
+      if (resYears.ok) {
+        const yearsData = await resYears.json();
+        setSchoolYears(yearsData);
+        
+        const activeYear = yearsData.find(y => y.school_year_status === 'Activo' || y.school_year_status === 'active');
+        if (activeYear) {
+            setFormData(prev => ({ ...prev, id_school_year: activeYear.id_school_year }));
+        }
+      }
+    } catch (error) {
+      console.error("Error cargando datos iniciales:", error);
+    }
   };
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch(studentsUrl);
+      const url = selectedYearFilter 
+        ? `${studentsUrl}?school_year=${selectedYearFilter}` 
+        : studentsUrl;
+
+      const response = await authenticatedFetch(url);
       if (!response.ok) throw new Error('Error al cargar estudiantes');
+      
       const data = await response.json();
       setStudents(Array.isArray(data) ? data : []);
-    } catch (error) { setAlertBox('Error al obtener la lista de estudiantes.'); }
+    } catch (error) {
+      console.error(error);
+      setAlertBox('Error al obtener estudiantes.');
+    }
   };
 
-  // --- VALIDACIONES ---
-
-  const calculateAge = (dob) => {
-      const birthDate = new Date(dob);
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const m = today.getMonth() - birthDate.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-      return age;
-  };
-
+  // --- FORM HANDLING ---
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    let newValue = value;
+    setFormData({ ...formData, [name]: value });
+  };
 
-    if (['first_name_student', 'last_name_student', 'city'].includes(name)) {
-      newValue = value.replace(/[^a-zA-ZñÑáéíóúÁÉÍÓÚ\s]/g, '');
+  const handleSubmit = async () => {
+    if (!formData.first_name_student || !formData.last_name_student || !formData.id_school_year) {
+      setAlertBox('Los campos: Nombre, Apellido y Año Escolar son obligatorios.');
+      return;
     }
-    if (name === 'zip_code') {
-      newValue = value.replace(/[^\d\-]/g, '');
-    }
-
-    setFormData((prev) => ({ ...prev, [name]: newValue }));
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
-    setAlertBox(null);
-  };
-
-  const handleBlur = (e) => {
-      const { name, value } = e.target;
-      if (requiredFields.includes(name) && !value.trim()) {
-          setErrors(prev => ({ ...prev, [name]: 'Este campo es obligatorio.' }));
-      }
-  };
-
-  const validateForm = () => {
-      const newErrors = {};
-      let isValid = true;
-
-      requiredFields.forEach(field => {
-          if (!formData[field] || String(formData[field]).trim() === '') {
-              newErrors[field] = 'Campo obligatorio.';
-              isValid = false;
-          }
-      });
-
-      if (formData.date_of_birth_student) {
-          const age = calculateAge(formData.date_of_birth_student);
-          const dob = new Date(formData.date_of_birth_student);
-          const today = new Date();
-          today.setHours(0,0,0,0);
-
-          if (dob > today) {
-              newErrors.date_of_birth_student = 'Fecha inválida.';
-              isValid = false;
-          } else if (age < 3) {
-              newErrors.date_of_birth_student = 'Edad mínima: 3 años.';
-              isValid = false;
-          }
-      }
-
-      setErrors(newErrors);
-      if (!isValid) setAlertBox('Por favor, corrija los errores.');
-      return isValid;
-  };
-
-  // --- CRUD ---
-
-  const handleSaveStudent = async () => {
-    if (!validateForm()) return;
-    setIsSaving(true);
-    setAlertBox(null);
 
     try {
       const method = editMode ? 'PUT' : 'POST';
-      const url = editMode ? `${studentsUrl}/${selectedStudent.id_student}` : studentsUrl;
+      const url = editMode ? `${studentsUrl}/${selectedStudentId}` : studentsUrl;
 
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.message || 'Error al guardar.');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al guardar.');
       }
 
-      await fetchStudents();
-      handleCloseModal();
+      setShowModal(false);
+      resetForm();
+      fetchStudents();
+      setAlertBox(null);
     } catch (error) {
       setAlertBox(error.message);
-    } finally {
-      setIsSaving(false);
     }
   };
 
-  const handleDeleteClick = (id) => { setIdToDelete(id); setShowDeleteModal(true); };
-
-  const confirmDelete = async () => {
-    if (!idToDelete) return;
-    setIsDeleting(true);
+  const handleDelete = async () => {
+    if (!studentToDelete) return;
     try {
-        const res = await fetch(`${studentsUrl}/${idToDelete}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error('Error al eliminar');
-        await fetchStudents();
-        setShowDeleteModal(false);
+      const response = await authenticatedFetch(`${studentsUrl}/${studentToDelete}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Error al eliminar');
+      
+      setShowDeleteModal(false);
+      setStudentToDelete(null);
+      fetchStudents();
     } catch (error) {
-        setAlertBox(error.message);
-        setShowDeleteModal(false);
-    } finally {
-        setIsDeleting(false);
+      setAlertBox('No se pudo eliminar el estudiante.');
+      setShowDeleteModal(false);
     }
   };
 
-  // --- Helpers UI ---
-
-  const handleEditStudent = (student) => {
-    setSelectedStudent(student);
+  const openEditModal = (student) => {
+    setEditMode(true);
+    setSelectedStudentId(student.id_student);
     setFormData({
-      id_tutor: student.id_tutor || '',
-      id_section: student.id_section || '',
-      id_school_year: student.id_school_year || '',
       first_name_student: student.first_name_student,
       last_name_student: student.last_name_student,
-      date_of_birth_student: student.date_of_birth_student ? student.date_of_birth_student.split('T')[0] : '',
-      health_record: student.health_record || '',
-      gender: student.gender || '',
+      date_of_birth_student: student.date_of_birth_student,
+      gender: student.gender,
       street: student.street || '',
       city: student.city || '',
       zip_code: student.zip_code || '',
+      health_record: student.health_record || '',
+      id_tutor: student.id_tutor || '',
+      id_section: student.id_section || '',
+      id_school_year: student.id_school_year || ''
     });
-    setEditMode(true); setErrors({}); setAlertBox(null); setShowModal(true);
+    setShowModal(true);
   };
 
-  const handleCloseModal = () => {
-    setShowModal(false);
+  const resetForm = () => {
     setFormData({
-      id_tutor: '', id_section: '', id_school_year: '',
-      first_name_student: '', last_name_student: '', date_of_birth_student: '',
-      health_record: '', gender: '', street: '', city: '', zip_code: '',
+      first_name_student: '',
+      last_name_student: '',
+      date_of_birth_student: '',
+      gender: 'M',
+      street: '',
+      city: '',
+      zip_code: '',
+      health_record: '',
+      id_tutor: '',
+      id_section: '',
+      id_school_year: ''
     });
-    setEditMode(false); setSelectedStudent(null); setErrors({}); setAlertBox(null);
+    setEditMode(false);
+    setSelectedStudentId(null);
   };
 
-  // --- HELPERS VISUALES (Minimalismo) ---
-
-  const getInitials = (name, lastname) => {
-      return `${name?.charAt(0) || ''}${lastname?.charAt(0) || ''}`.toUpperCase();
-  };
-
-  const getTutorLabel = (tutorId) => {
-      const tutor = tutorsList.find(t => t.id_tutor === tutorId);
-      if (!tutor) return `ID: ${tutorId}`;
-      const user = usersList.find(u => u.uid_users === tutor.uid_users);
-      return user ? `${user.first_name} ${user.last_name}` : `Tutor #${tutorId}`;
-  };
-
-  const getSectionLabel = (sectionId) => {
-      const sec = sectionsList.find(s => s.id_section === sectionId);
-      return sec ? `Sección ${sec.num_section}` : sectionId;
-  };
-
-  const renderError = (field) => errors[field] ? <div style={{color: '#dc3545', fontSize: '0.8rem'}}>{errors[field]}</div> : null;
-
-  const filteredStudents = students.filter(s => 
-      s.first_name_student.toLowerCase().includes(filter.first_name_student.toLowerCase())
+  const filteredStudents = students.filter(s =>
+    (s.first_name_student + ' ' + s.last_name_student).toLowerCase().includes(filter.first_name_student.toLowerCase())
   );
-
-  // Stats
-  const totalStudents = students.length;
-  const maleStudents = students.filter(s => s.gender === 'M').length;
-  const femaleStudents = students.filter(s => s.gender === 'F').length;
 
   return (
     <div className="container-fluid mt-4">
-      
-      {/* --- KPI CARDS (Minimalista & Dark Mode friendly) --- */}
-      <CRow className="mb-4">
-          <CCol sm={4}>
-              <CCard className="border-start-4 border-start-primary shadow-sm h-100">
-                  <CCardBody className="d-flex justify-content-between align-items-center p-3">
-                      <div>
-                          <div className="text-medium-emphasis small text-uppercase fw-bold">Total Estudiantes</div>
-                          <div className="fs-4 fw-semibold text-body">{totalStudents}</div>
-                      </div>
-                      <CIcon icon={cilPeople} size="xl" className="text-primary" />
-                  </CCardBody>
-              </CCard>
-          </CCol>
-          <CCol sm={4}>
-              <CCard className="border-start-4 border-start-info shadow-sm h-100">
-                  <CCardBody className="d-flex justify-content-between align-items-center p-3">
-                      <div>
-                          <div className="text-medium-emphasis small text-uppercase fw-bold">Niños</div>
-                          <div className="fs-4 fw-semibold text-body">{maleStudents}</div>
-                      </div>
-                      <CIcon icon={cilMoodGood} size="xl" className="text-info" />
-                  </CCardBody>
-              </CCard>
-          </CCol>
-          <CCol sm={4}>
-              <CCard className="border-start-4 border-start-danger shadow-sm h-100">
-                  <CCardBody className="d-flex justify-content-between align-items-center p-3">
-                      <div>
-                          <div className="text-medium-emphasis small text-uppercase fw-bold">Niñas</div>
-                          <div className="fs-4 fw-semibold text-body">{femaleStudents}</div>
-                      </div>
-                      <CIcon icon={cilMoodVeryGood} size="xl" className="text-danger" />
-                  </CCardBody>
-              </CCard>
-          </CCol>
-      </CRow>
-
-      {/* --- SECCIÓN PRINCIPAL --- */}
       <CCard className="shadow-sm border-0">
-        <CCardHeader className="bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
-            <h5 className="mb-0 text-body">Directorio Estudiantil</h5>
-            <CButton color="success" onClick={() => { handleCloseModal(); setShowModal(true); }} className="d-flex align-items-center text-white">
-              <CIcon icon={cilPlus} className="me-2" /> Nuevo Estudiante
-            </CButton>
+        {/* ARREGLADO: Quitamos 'bg-white' para que respete el modo oscuro */}
+        <CCardHeader className="py-3 d-flex justify-content-between align-items-center">
+          <h5 className="mb-0 text-primary fw-bold">Directorio Estudiantil</h5>
+          <CButton color="primary" onClick={() => { resetForm(); setShowModal(true); }}>
+            <CIcon icon={cilPlus} className="me-2" /> Nuevo Estudiante
+          </CButton>
         </CCardHeader>
-        
         <CCardBody>
-            {alertBox && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
+          {alertBox && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
 
-            {/* Filtro Simple */}
-            <div className="mb-4" style={{ maxWidth: '300px' }}>
-                <CInputGroup>
-                    <CInputGroupText className="bg-transparent text-medium-emphasis border-end-0">
-                        <CIcon icon={cilSearch} />
-                    </CInputGroupText>
+          {/* ARREGLADO: Quitamos 'bg-light'. Ahora usa bordes sutiles que se ven bien en oscuro. */}
+          <div className="d-flex flex-wrap gap-3 mb-4 p-3 rounded align-items-end border">
+             {/* 1. SELECTOR DE AÑO */}
+            <div style={{ minWidth: '220px' }}>
+                <label className="small text-muted mb-1 fw-bold">Filtrar por Periodo:</label>
+                <CFormSelect 
+                    value={selectedYearFilter}
+                    onChange={(e) => setSelectedYearFilter(e.target.value)}
+                    className="shadow-sm" // Quitamos border-0 para mejor visibilidad
+                    style={{cursor: 'pointer'}}
+                >
+                    <option value="">-- Ver Todos los Años --</option>
+                    {schoolYears.map(year => (
+                        <option key={year.id_school_year} value={year.id_school_year}>
+                            {year.name_period || year.school_grade} {year.school_year_status === 'Activo' ? '🟢 (Activo)' : '⚪ (Cerrado)'}
+                        </option>
+                    ))}
+                </CFormSelect>
+            </div>
+
+            {/* 2. BUSCADOR */}
+            <div style={{ flexGrow: 1, minWidth: '250px' }}>
+                <label className="small text-muted mb-1 fw-bold">Buscar Alumno:</label>
+                <CInputGroup className="shadow-sm">
+                    {/* ARREGLADO: Quitamos 'bg-white' del icono */}
+                    <CInputGroupText className="border-end-0"><CIcon icon={cilSearch} /></CInputGroupText>
                     <CFormInput
-                        className="bg-transparent border-start-0"
-                        placeholder="Buscar por nombre..."
+                        className="border-start-0"
+                        placeholder="Escribe nombre o apellido..."
                         value={filter.first_name_student}
                         onChange={(e) => setFilter({ ...filter, first_name_student: e.target.value })}
                     />
                 </CInputGroup>
             </div>
+          </div>
 
-            {/* Tabla Moderna */}
-            <CTable align="middle" className="mb-0 border" hover responsive striped>
-              <CTableHead>
-                <CTableRow>
-                  <CTableHeaderCell className="text-center" style={{width: '60px'}}><CIcon icon={cilSchool} /></CTableHeaderCell>
-                  <CTableHeaderCell>Estudiante</CTableHeaderCell>
-                  <CTableHeaderCell>Información Académica</CTableHeaderCell>
-                  <CTableHeaderCell>Tutor Asignado</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
-                </CTableRow>
-              </CTableHead>
-              <CTableBody>
-                {filteredStudents.map((s) => {
-                    const age = s.date_of_birth_student ? calculateAge(s.date_of_birth_student) : 'N/A';
-                    return (
-                      <CTableRow key={s.id_student}>
-                        <CTableDataCell className="text-center">
-                            <CAvatar size="md" color={s.gender === 'F' ? 'danger' : 'info'} textColor="white">
-                                {getInitials(s.first_name_student, s.last_name_student)}
-                            </CAvatar>
-                        </CTableDataCell>
-                        <CTableDataCell>
-                            <div className="fw-bold text-body">{s.first_name_student} {s.last_name_student}</div>
-                            <div className="small text-medium-emphasis">Edad: {age} años</div>
-                        </CTableDataCell>
-                        <CTableDataCell>
-                            <div className="text-body">{getSectionLabel(s.id_section)}</div>
-                            <div className="small text-medium-emphasis">Año Escolar: {s.id_school_year}</div>
-                        </CTableDataCell>
-                        <CTableDataCell>
-                            <div className="d-flex align-items-center">
-                                <CIcon icon={cilUser} className="me-2 text-medium-emphasis"/>
-                                {getTutorLabel(s.id_tutor)}
+          {/* TABLA */}
+          <CTable hover responsive align="middle" className="border-top">
+            {/* ARREGLADO: Quitamos color="light" para que la cabecera no sea blanca en modo oscuro */}
+            <CTableHead>
+              <CTableRow>
+                <CTableHeaderCell>Estudiante</CTableHeaderCell>
+                <CTableHeaderCell>Información Académica</CTableHeaderCell>
+                <CTableHeaderCell>Ubicación</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
+              </CTableRow>
+            </CTableHead>
+            <CTableBody>
+              {filteredStudents.length > 0 ? filteredStudents.map((s) => (
+                <CTableRow key={s.id_student}>
+                  <CTableDataCell>
+                    <div className="d-flex align-items-center">
+                        <div className="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center me-3 shadow-sm" style={{width:'42px', height:'42px'}}>
+                            <CIcon icon={cilUser} size="lg"/>
+                        </div>
+                        <div>
+                            {/* ARREGLADO: Quitamos 'text-dark'. Ahora el texto se adapta al tema. */}
+                            <div className="fw-bold">{s.first_name_student} {s.last_name_student}</div>
+                            <div className="small text-muted">
+                                {s.gender === 'M' ? 'Masculino' : 'Femenino'} <span className="mx-1">•</span> {s.date_of_birth_student}
                             </div>
-                        </CTableDataCell>
-                        <CTableDataCell className="text-end">
-                          <CButton color="light" size="sm" variant="ghost" className="me-2" onClick={() => handleEditStudent(s)}>
-                              <CIcon icon={cilPencil} className="text-warning"/>
-                          </CButton>
-                          <CButton color="light" size="sm" variant="ghost" onClick={() => handleDeleteClick(s.id_student)}>
-                              <CIcon icon={cilTrash} className="text-danger"/>
-                          </CButton>
-                        </CTableDataCell>
-                      </CTableRow>
-                    );
-                })}
-                {filteredStudents.length === 0 && (
-                    <CTableRow>
-                        <CTableDataCell colSpan="5" className="text-center py-4 text-medium-emphasis">
-                            No se encontraron estudiantes.
-                        </CTableDataCell>
-                    </CTableRow>
-                )}
-              </CTableBody>
-            </CTable>
+                        </div>
+                    </div>
+                  </CTableDataCell>
+                  
+                  <CTableDataCell>
+                    <div className="d-flex flex-column">
+                        <span className="mb-1">
+                            <CBadge color="info" shape="rounded-pill">{s.grade_name || 'Sin Grado'}</CBadge>
+                        </span>
+                        {/* ARREGLADO: Usamos text-body para que se vea en oscuro */}
+                        <span className="small fw-bold text-body">{s.section_name || 'Sin Sección'}</span>
+                        <span className="small text-muted fst-italic">{s.period_name}</span>
+                    </div>
+                  </CTableDataCell>
+
+                  <CTableDataCell>
+                    <div className="small fw-semibold">{s.city || 'No especificada'}</div>
+                    <div className="small text-muted text-truncate" style={{maxWidth: '180px'}} title={s.street}>{s.street}</div>
+                  </CTableDataCell>
+
+                  <CTableDataCell className="text-end">
+                    <CButton color="light" size="sm" variant="ghost" className="me-2" onClick={() => openEditModal(s)} title="Editar">
+                        <CIcon icon={cilPencil} className="text-warning"/>
+                    </CButton>
+                    <CButton color="light" size="sm" variant="ghost" onClick={() => { setStudentToDelete(s.id_student); setShowDeleteModal(true); }} title="Eliminar">
+                        <CIcon icon={cilTrash} className="text-danger"/>
+                    </CButton>
+                  </CTableDataCell>
+                </CTableRow>
+              )) : (
+                  <CTableRow>
+                      <CTableDataCell colSpan="4" className="text-center py-5">
+                          <div className="text-muted mb-2">No se encontraron estudiantes.</div>
+                          {selectedYearFilter && <small className="text-warning">Intenta cambiando el filtro de año escolar.</small>}
+                      </CTableDataCell>
+                  </CTableRow>
+              )}
+            </CTableBody>
+          </CTable>
         </CCardBody>
       </CCard>
 
-      {/* --- MODALES --- */}
-      
-      <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} backdrop="static" alignment="center">
-          <CModalHeader><CModalTitle>Confirmar Eliminación</CModalTitle></CModalHeader>
-          <CModalBody>¿Eliminar este estudiante? Se perderán sus notas y asistencias.</CModalBody>
-          <CModalFooter>
-              <CButton color="secondary" variant="ghost" onClick={() => setShowDeleteModal(false)}>Cancelar</CButton>
-              <CButton color="danger" onClick={confirmDelete} disabled={isDeleting}>
-                  {isDeleting ? 'Eliminando...' : 'Eliminar'}
-              </CButton>
-          </CModalFooter>
-      </CModal>
-
-      <CModal visible={showModal} onClose={handleCloseModal} backdrop="static" size="lg">
-        <CModalHeader><CModalTitle>{editMode ? 'Editar Estudiante' : 'Nuevo Estudiante'}</CModalTitle></CModalHeader>
+      {/* MODALES (Se mantienen igual) */}
+      <CModal visible={showModal} onClose={() => setShowModal(false)} size="lg" backdrop="static">
+        <CModalHeader>
+          <CModalTitle>{editMode ? 'Editar Estudiante' : 'Nuevo Estudiante'}</CModalTitle>
+        </CModalHeader>
         <CModalBody>
-          {alertBox && <CAlert color="danger">{alertBox}</CAlert>}
           <CForm>
-              <h6 className="text-medium-emphasis mb-3">Datos Académicos</h6>
-              <CRow className="mb-3">
-                  <CCol md={4}>
-                      <CFormSelect label="Tutor *" name="id_tutor" value={formData.id_tutor} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.id_tutor}>
-                          <option value="">Seleccione Tutor...</option>
-                          {tutorsList.map(t => <option key={t.id_tutor} value={t.id_tutor}>{getTutorLabel(t.id_tutor)}</option>)}
-                      </CFormSelect>
-                      {renderError('id_tutor')}
-                  </CCol>
-                  <CCol md={4}>
-                      <CFormSelect label="Sección *" name="id_section" value={formData.id_section} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.id_section}>
-                          <option value="">Seleccione Sección...</option>
-                          {sectionsList.map(s => <option key={s.id_section} value={s.id_section}>Sección {s.num_section}</option>)}
-                      </CFormSelect>
-                      {renderError('id_section')}
-                  </CCol>
-                  <CCol md={4}>
-                      <CFormSelect label="Año Escolar *" name="id_school_year" value={formData.id_school_year} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.id_school_year}>
-                          <option value="">Seleccione Año...</option>
-                          {schoolYearsList.map(y => <option key={y.id_school_year} value={y.id_school_year}>{y.school_grade} ({y.start_year})</option>)}
-                      </CFormSelect>
-                      {renderError('id_school_year')}
-                  </CCol>
-              </CRow>
+            <div className="row g-3">
+                <div className="col-12"><h6 className="text-muted border-bottom pb-2">Datos Personales</h6></div>
+                <div className="col-md-6">
+                    <CFormInput label="Nombres *" name="first_name_student" value={formData.first_name_student} onChange={handleInputChange} placeholder="Ej: Juan Andrés"/>
+                </div>
+                <div className="col-md-6">
+                    <CFormInput label="Apellidos *" name="last_name_student" value={formData.last_name_student} onChange={handleInputChange} placeholder="Ej: Pérez López"/>
+                </div>
+                <div className="col-md-6">
+                    <CFormInput type="date" label="Fecha Nacimiento" name="date_of_birth_student" value={formData.date_of_birth_student} onChange={handleInputChange} />
+                </div>
+                <div className="col-md-6">
+                    <CFormSelect label="Género" name="gender" value={formData.gender} onChange={handleInputChange}>
+                        <option value="M">Masculino</option>
+                        <option value="F">Femenino</option>
+                    </CFormSelect>
+                </div>
 
-              <h6 className="text-medium-emphasis mb-3 mt-4">Datos Personales</h6>
-              <CRow className="mb-3">
-                  <CCol md={6}>
-                      <CFormInput label="Nombre *" name="first_name_student" value={formData.first_name_student} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.first_name_student} />
-                      {renderError('first_name_student')}
-                  </CCol>
-                  <CCol md={6}>
-                      <CFormInput label="Apellido *" name="last_name_student" value={formData.last_name_student} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.last_name_student} />
-                      {renderError('last_name_student')}
-                  </CCol>
-              </CRow>
+                <div className="col-12 mt-4"><h6 className="text-muted border-bottom pb-2">Asignación Académica</h6></div>
+                <div className="col-md-6">
+                    <CFormSelect label="Año Escolar *" name="id_school_year" value={formData.id_school_year} onChange={handleInputChange} className="border-primary">
+                        <option value="">Seleccione Periodo...</option>
+                        {schoolYears.map(sy => (
+                             <option key={sy.id_school_year} value={sy.id_school_year}>
+                                {sy.name_period || sy.school_grade} {sy.school_year_status === 'Activo' ? '(Activo)' : ''}
+                             </option>
+                        ))}
+                    </CFormSelect>
+                </div>
+                <div className="col-md-6">
+                    <CFormSelect label="Sección (Grado)" name="id_section" value={formData.id_section} onChange={handleInputChange}>
+                        <option value="">Seleccione Sección...</option>
+                        {sections.map(sec => (
+                             <option key={sec.id_section} value={sec.id_section}>
+                                {sec.Grade?.name_grade} - Sección "{sec.num_section}"
+                             </option>
+                        ))}
+                    </CFormSelect>
+                </div>
+                <div className="col-md-12">
+                    <CFormSelect label="Tutor Responsable" name="id_tutor" value={formData.id_tutor} onChange={handleInputChange}>
+                        <option value="">Seleccione Tutor...</option>
+                        {tutors.map(t => (
+                             <option key={t.id_tutor} value={t.id_tutor}>
+                                {t.dni ? `C.I: ${t.dni}` : `ID: ${t.id_tutor}`} - {t.profession || 'Sin profesión'}
+                             </option>
+                        ))}
+                    </CFormSelect>
+                </div>
 
-              <CRow className="mb-3">
-                  <CCol md={6}>
-                      <CFormInput type="date" label="Fecha Nacimiento *" name="date_of_birth_student" value={formData.date_of_birth_student} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.date_of_birth_student} />
-                      {renderError('date_of_birth_student')}
-                  </CCol>
-                  <CCol md={6}>
-                      <CFormSelect label="Género *" name="gender" value={formData.gender} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.gender}>
-                          <option value="">Seleccione...</option>
-                          <option value="M">Masculino</option>
-                          <option value="F">Femenino</option>
-                      </CFormSelect>
-                      {renderError('gender')}
-                  </CCol>
-              </CRow>
-
-              <CRow className="mb-3">
-                  <CCol md={5}><CFormInput label="Calle *" name="street" value={formData.street} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.street} />{renderError('street')}</CCol>
-                  <CCol md={4}><CFormInput label="Ciudad *" name="city" value={formData.city} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.city} />{renderError('city')}</CCol>
-                  <CCol md={3}><CFormInput label="C.P. *" name="zip_code" value={formData.zip_code} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.zip_code} />{renderError('zip_code')}</CCol>
-              </CRow>
-
-              <CFormTextarea label="Historial Médico (Opcional)" name="health_record" value={formData.health_record} onChange={handleInputChange} rows={2} />
+                <div className="col-12 mt-4"><h6 className="text-muted border-bottom pb-2">Dirección y Salud</h6></div>
+                <div className="col-md-4">
+                     <CFormInput label="Ciudad" name="city" value={formData.city} onChange={handleInputChange} placeholder="Ej: San Cristóbal"/>
+                </div>
+                <div className="col-md-4">
+                     <CFormInput label="Código Postal" name="zip_code" value={formData.zip_code} onChange={handleInputChange} placeholder="Ej: 5001"/>
+                </div>
+                <div className="col-md-4">
+                     <CFormInput label="Calle / Dirección" name="street" value={formData.street} onChange={handleInputChange} placeholder="Av. Principal..."/>
+                </div>
+                <div className="col-md-12">
+                     <CFormTextarea 
+                        label="Ficha Médica / Observaciones" 
+                        name="health_record" 
+                        value={formData.health_record} 
+                        onChange={handleInputChange} 
+                        placeholder="Alergias, condiciones especiales..."
+                        rows={2}
+                     />
+                </div>
+            </div>
           </CForm>
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" variant="ghost" onClick={handleCloseModal}>Cancelar</CButton>
-          <CButton color="success" onClick={handleSaveStudent} disabled={isSaving}>Guardar</CButton>
+          <CButton color="secondary" onClick={() => setShowModal(false)}>Cancelar</CButton>
+          <CButton color="primary" onClick={handleSubmit}>Guardar Estudiante</CButton>
+        </CModalFooter>
+      </CModal>
+
+      <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} alignment="center">
+        <CModalHeader><CModalTitle>Confirmar Eliminación</CModalTitle></CModalHeader>
+        <CModalBody>
+            <p>¿Estás seguro de eliminar este estudiante?</p>
+            <div className="alert alert-warning small">
+                <strong>Advertencia:</strong> Esta acción borrará también el historial de inscripciones y notas asociadas.
+            </div>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</CButton>
+          <CButton color="danger" onClick={handleDelete}>Eliminar Definitivamente</CButton>
         </CModalFooter>
       </CModal>
     </div>

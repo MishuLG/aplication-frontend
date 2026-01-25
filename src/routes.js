@@ -17,7 +17,7 @@ const ClassSchedules = React.lazy(() => import('./components/classSchedules/Clas
 const Attendance = React.lazy(() => import('./components/Attendance/Attendance'))
 const Evaluations = React.lazy(() => import('./components/Evaluations/Evaluations'))
 const GradeReports = React.lazy(() => import('./components/Newsletters/gradeReports'))
-
+const EnrollmentValidation = React.lazy(() => import('./components/enrollment/EnrollmentValidation'));
 
 // Base
 const Accordion = React.lazy(() => import('./views/base/accordion/Accordion'))
@@ -81,6 +81,7 @@ const routes = [
   { path: '/profile', name: 'Profile', element: Profile },
   { path: '/students', name: 'Students', element: Students },
   { path: '/tutors', name: 'Tutors', element: Tutors },
+  { path: '/enrollments/validate', name: 'Validar Inscripciones', element: EnrollmentValidation },
   { path: '/theme', name: 'Theme', element: Colors, exact: true },
   { path: '/theme/colors', name: 'Colors', element: Colors },
   { path: '/theme/typography', name: 'Typography', element: Typography },
