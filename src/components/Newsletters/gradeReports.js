@@ -58,11 +58,14 @@ const GradeReports = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [errorMessage, setErrorMessage] = useState(null);
 
-  // URLs
+ // URLs
   const newslettersUrl = `${API_URL}/newsletters`;
   const tutorsUrl = `${API_URL}/tutors`; 
   const enrollmentsUrl = `${API_URL}/enrollments`; 
-  const bulletinUrl = `${API_URL}/api/bulletin`;
+  
+  // RUTA CORRECTA: Sin '/bulletin' extra
+  // Esto generará: http://localhost:4000/api/bulletins/1
+  const bulletinUrl = `${API_URL}/bulletins`;
 
   // Helper de Autenticación
   const authenticatedFetch = async (url, options = {}) => {
@@ -101,6 +104,7 @@ const GradeReports = () => {
   const handleDownloadBulletin = async (id_enrollment) => {
       try {
           const token = localStorage.getItem('token');
+          // Usamos la URL corregida
           const response = await fetch(`${bulletinUrl}/${id_enrollment}`, {
               method: 'GET',
               headers: { 'Authorization': `Bearer ${token}` }
@@ -305,7 +309,10 @@ const GradeReports = () => {
                                         </CBadge>
                                     ) : <span className="text-danger small">Sin Sección</span>}
                                 </CTableDataCell>
-                                <CTableDataCell className="fw-bold">{enrollment.final_average}</CTableDataCell>
+                                <CTableDataCell className="fw-bold">
+                                    {/* Muestra promedio con 2 decimales */}
+                                    {enrollment.final_average ? Number(enrollment.final_average).toFixed(2) : '0.00'}
+                                </CTableDataCell>
                                 <CTableDataCell>
                                     <CBadge color="info">{enrollment.status}</CBadge>
                                 </CTableDataCell>

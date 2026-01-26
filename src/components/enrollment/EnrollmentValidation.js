@@ -3,9 +3,8 @@ import {
   CCard, CCardBody, CCardHeader, CTable, CTableBody, CTableHead, CTableHeaderCell, CTableRow, CTableDataCell, CButton, CBadge, CAlert
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
-import { cilCheckCircle } from '@coreui/icons';
-// Ajusta la URL si es necesario
-const API_URL = 'http://localhost:4000/api'; 
+import { cilCheckCircle, cilSchool } from '@coreui/icons';
+import API_URL from '../../../config'; // Usar config global
 
 const EnrollmentValidation = () => {
   const [enrollments, setEnrollments] = useState([]);
@@ -15,94 +14,101 @@ const EnrollmentValidation = () => {
     fetchPendingEnrollments();
   }, []);
 
+  const authenticatedFetch = async (url, options = {}) => {
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(url, { ...options, headers });
+    return response;
+  };
+
   const fetchPendingEnrollments = async () => {
     try {
-      const token = localStorage.getItem('token');
-      // NOTA: Necesitamos crear este endpoint en el backend o filtrar en el frontend.
-      // Por ahora simularemos trayendo todos y filtrando en JS.
-      const response = await fetch(`${API_URL}/enrollments`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await response.json();
-      
-      // Filtramos solo los que están "Pre-Inscrito" (estado típico post-promoción)
-      // O 'Cursando' si la promoción lo dejó así. Ajustamos según tu lógica.
-      const pending = data.filter(e => e.status === 'Pre-Inscrito' || e.observations?.includes('Promoción Automática'));
-      setEnrollments(pending);
-    } catch (error) {
-      console.error(error);
-    }
+      const response = await authenticatedFetch(`${API_URL}/enrollments`);
+      if (response.ok) {
+          const data = await response.json();
+          // Filtro: Pre-Inscrito (Nuevos) o Promoción Automática
+          const pending = data.filter(e => 
+              e.status === 'Pre-Inscrito' || 
+              (e.observations && e.observations.includes('Promoción'))
+          );
+          setEnrollments(pending);
+      }
+    } catch (error) { console.error(error); }
   };
 
   const validateEnrollment = async (id) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/enrollments/${id}`, {
+      const response = await authenticatedFetch(`${API_URL}/enrollments/${id}`, {
         method: 'PUT',
-        headers: { 
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}` 
-        },
-        body: JSON.stringify({ status: 'Cursando', observations: 'Inscripción Validada' })
+        body: JSON.stringify({ 
+            status: 'Cursando', 
+            observations: 'Inscripción Validada por Admin' 
+        })
       });
 
       if (response.ok) {
-        setAlert({ color: 'success', message: '¡Inscripción validada correctamente!' });
-        fetchPendingEnrollments(); // Recargar lista
+        setAlert({ color: 'success', message: '¡Estudiante validado! Ahora está Cursando.' });
+        fetchPendingEnrollments(); // Refrescar lista
       } else {
         throw new Error('Error al validar');
       }
     } catch (error) {
-      setAlert({ color: 'danger', message: 'No se pudo validar la inscripción.' });
+      setAlert({ color: 'danger', message: 'Error de conexión.' });
     }
   };
 
   return (
-    <CCard>
-      <CCardHeader>Validar Inscripciones (Promociones Pendientes)</CCardHeader>
-      <CCardBody>
-        {alert && <CAlert color={alert.color}>{alert.message}</CAlert>}
-        
-        <CTable hover responsive>
-            <CTableHead>
-                <CTableRow>
-                    <CTableHeaderCell>Estudiante</CTableHeaderCell>
-                    <CTableHeaderCell>Sección / Año</CTableHeaderCell>
-                    <CTableHeaderCell>Estado Actual</CTableHeaderCell>
-                    <CTableHeaderCell>Acción</CTableHeaderCell>
-                </CTableRow>
-            </CTableHead>
-            <CTableBody>
-                {enrollments.length > 0 ? enrollments.map(e => (
-                    <CTableRow key={e.id_enrollment}>
-                        <CTableDataCell>
-                            {e.Student?.first_name_student} {e.Student?.last_name_student}
-                            <div className="small text-muted">{e.Student?.dni}</div>
-                        </CTableDataCell>
-                        <CTableDataCell>
-                            {e.Section?.Grade?.name_grade} - {e.Section?.num_section}
-                        </CTableDataCell>
-                        <CTableDataCell>
-                            <CBadge color="warning">{e.status}</CBadge>
-                        </CTableDataCell>
-                        <CTableDataCell>
-                            <CButton color="success" size="sm" className="text-white" onClick={() => validateEnrollment(e.id_enrollment)}>
-                                <CIcon icon={cilCheckCircle} className="me-2"/>
-                                Confirmar Inscripción
-                            </CButton>
-                        </CTableDataCell>
-                    </CTableRow>
-                )) : (
+    <div className="container-fluid mt-4">
+        <CCard className="shadow-sm border-0">
+        <CCardHeader className="bg-transparent border-0 py-3">
+            <h5 className="mb-0 text-body"><CIcon icon={cilSchool} className="me-2"/>Validación de Inscripciones</h5>
+        </CCardHeader>
+        <CCardBody>
+            {alert && <CAlert color={alert.color} dismissible onClose={() => setAlert(null)}>{alert.message}</CAlert>}
+            
+            <CTable hover responsive align="middle">
+                <CTableHead>
                     <CTableRow>
-                        <CTableDataCell colSpan="4" className="text-center text-muted">
-                            No hay inscripciones pendientes por validar.
-                        </CTableDataCell>
+                        <CTableHeaderCell>Estudiante</CTableHeaderCell>
+                        <CTableHeaderCell>Cédula</CTableHeaderCell>
+                        <CTableHeaderCell>Sección Asignada</CTableHeaderCell>
+                        <CTableHeaderCell>Estado Actual</CTableHeaderCell>
+                        <CTableHeaderCell>Acción</CTableHeaderCell>
                     </CTableRow>
-                )}
-            </CTableBody>
-        </CTable>
-      </CCardBody>
-    </CCard>
+                </CTableHead>
+                <CTableBody>
+                    {enrollments.length > 0 ? enrollments.map(e => (
+                        <CTableRow key={e.id_enrollment}>
+                            <CTableDataCell className="fw-bold">
+                                {/* CORREGIDO: Usamos first_name y last_name directos */}
+                                {e.Student?.first_name} {e.Student?.last_name}
+                            </CTableDataCell>
+                            <CTableDataCell>{e.Student?.dni}</CTableDataCell>
+                            <CTableDataCell>
+                                {e.Section?.Grade?.name_grade} "{e.Section?.num_section}"
+                            </CTableDataCell>
+                            <CTableDataCell>
+                                <CBadge color="warning" shape="rounded-pill">{e.status}</CBadge>
+                            </CTableDataCell>
+                            <CTableDataCell>
+                                <CButton color="success" size="sm" className="text-white" onClick={() => validateEnrollment(e.id_enrollment)}>
+                                    <CIcon icon={cilCheckCircle} className="me-2"/> Validar
+                                </CButton>
+                            </CTableDataCell>
+                        </CTableRow>
+                    )) : (
+                        <CTableRow>
+                            <CTableDataCell colSpan="5" className="text-center text-medium-emphasis py-5">
+                                No hay estudiantes pendientes por validar.
+                            </CTableDataCell>
+                        </CTableRow>
+                    )}
+                </CTableBody>
+            </CTable>
+        </CCardBody>
+        </CCard>
+    </div>
   );
 };
 
