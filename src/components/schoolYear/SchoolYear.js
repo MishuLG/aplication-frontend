@@ -43,9 +43,9 @@ const SchoolYear = () => {
   // --- ESTADOS DE DATOS ---
   const [schoolYears, setSchoolYears] = useState([]);
   
-  // Datos del formulario simplificado (Solo lo necesario)
+  // Datos del formulario
   const [formData, setFormData] = useState({
-    school_grade: '', // Se usa como nombre del periodo
+    school_grade: '', 
     start_year: '',
     end_of_year: '',
     school_year_status: 'active',
@@ -67,7 +67,7 @@ const SchoolYear = () => {
   const [idToDelete, setIdToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Modal Promoción Automática
+  // Modal Promoción
   const [showPromotionModal, setShowPromotionModal] = useState(false);
   const [isPromoting, setIsPromoting] = useState(false);
   const [nextPeriodData, setNextPeriodData] = useState({
@@ -79,13 +79,7 @@ const SchoolYear = () => {
   const schoolYearsUrl = `${API_URL}/school_years`;
   const promotionUrl = `${API_URL}/execute-promotion`;
 
-  // Campos requeridos (Ya no pedimos días ni eventos, el backend los calcula)
-  const requiredFields = [
-    'school_grade',
-    'start_year',
-    'end_of_year',
-    'school_year_status',
-  ];
+  const requiredFields = ['school_grade', 'start_year', 'end_of_year', 'school_year_status'];
 
   useEffect(() => {
     fetchSchoolYears();
@@ -173,14 +167,12 @@ const SchoolYear = () => {
 
   const handleSaveSchoolYear = async () => {
     if (!validateForm()) return;
-    
     setIsSaving(true);
     setAlertBox(null);
 
-    // Solo enviamos los datos básicos, el backend calculará el resto
     const payload = {
-      name_period: formData.school_grade, // Mapeamos school_grade al nuevo campo name_period
-      school_grade: formData.school_grade, // Enviamos ambos por compatibilidad
+      name_period: formData.school_grade,
+      school_grade: formData.school_grade,
       start_year: formData.start_year,
       end_of_year: formData.end_of_year,
       school_year_status: formData.school_year_status
@@ -264,14 +256,14 @@ const SchoolYear = () => {
   return (
     <div className="container-fluid mt-4">
       
-      {/* PANEL DE CIERRE DE AÑO (Solo si hay activo) */}
+      {/* PANEL DE CIERRE DE AÑO (ADAPTADO) */}
       {activeYear && (
-          <CAlert color="info" className="d-flex align-items-center justify-content-between shadow-sm border-info">
+          <CAlert color="info" className="d-flex align-items-center justify-content-between shadow-sm">
               <div>
                   <CIcon icon={cilCheckCircle} className="me-2" size="xl"/>
-                  <span className="fs-5 align-middle">
+                  <span className="fs-5 align-middle text-body">
                       Año Escolar Actual: <strong>{activeYear.name_period || activeYear.school_grade}</strong> 
-                      <span className="small ms-2">({activeYear.start_year} - {activeYear.end_of_year})</span>
+                      <span className="small ms-2 opacity-75">({activeYear.start_year} - {activeYear.end_of_year})</span>
                   </span>
               </div>
               <CButton color="warning" className="text-dark fw-bold" onClick={handlePromotionClick}>
@@ -281,10 +273,10 @@ const SchoolYear = () => {
           </CAlert>
       )}
 
-      {/* TABLA PRINCIPAL */}
-      <CCard className="shadow-sm border-0">
-        <CCardHeader className="bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
-            <h5 className="mb-0 text-body">Historial de Periodos Escolares</h5>
+      {/* TABLA PRINCIPAL (ADAPTADA) */}
+      <CCard className="shadow-sm">
+        <CCardHeader className="d-flex justify-content-between align-items-center py-3">
+            <h5 className="mb-0">Historial de Periodos Escolares</h5>
             <CButton color="success" onClick={() => { handleCloseModal(); setShowModal(true); }} className="text-white">
               <CIcon icon={cilPlus} className="me-2" /> Nuevo Periodo
             </CButton>
@@ -295,9 +287,8 @@ const SchoolYear = () => {
 
             <div className="mb-4" style={{ maxWidth: '400px' }}>
                 <CInputGroup>
-                    <CInputGroupText className="bg-transparent border-end-0"><CIcon icon={cilSearch} /></CInputGroupText>
+                    <CInputGroupText><CIcon icon={cilSearch} /></CInputGroupText>
                     <CFormInput 
-                        className="bg-transparent border-start-0"
                         placeholder="Buscar por nombre (ej: 2024-2025)..." 
                         value={filter.school_grade} 
                         onChange={(e) => setFilter({ ...filter, school_grade: e.target.value })} 
@@ -305,12 +296,12 @@ const SchoolYear = () => {
                 </CInputGroup>
             </div>
 
-            <CTable align="middle" className="mb-0 border" hover responsive striped>
-              <CTableHead color="light">
+            <CTable align="middle" hover responsive bordered>
+              <CTableHead>
                 <CTableRow>
                   <CTableHeaderCell>Periodo</CTableHeaderCell>
                   <CTableHeaderCell>Duración</CTableHeaderCell>
-                  <CTableHeaderCell>Resumen Calendario (Automático)</CTableHeaderCell>
+                  <CTableHeaderCell>Resumen Calendario</CTableHeaderCell>
                   <CTableHeaderCell className="text-center">Estado</CTableHeaderCell>
                   <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
                 </CTableRow>
@@ -324,14 +315,14 @@ const SchoolYear = () => {
                             <div className="fw-bold">{sy.name_period || sy.school_grade}</div>
                         </CTableDataCell>
                         <CTableDataCell>
-                            <div className="small text-muted">Inicio: {sy.start_year}</div>
-                            <div className="small text-muted">Fin: {sy.end_of_year}</div>
+                            <div className="small text-body-secondary">Inicio: {sy.start_year}</div>
+                            <div className="small text-body-secondary">Fin: {sy.end_of_year}</div>
                         </CTableDataCell>
                         <CTableDataCell>
                             <div className="d-flex align-items-center mb-1">
                                 <CBadge color="info" className="me-2">{sy.number_of_school_days || 0} días hábiles</CBadge>
                             </div>
-                            <div className="small text-muted text-truncate" style={{maxWidth: '250px'}} title={sy.special_events}>
+                            <div className="small text-body-secondary text-truncate" style={{maxWidth: '250px'}} title={sy.special_events}>
                                 {sy.special_events || 'Sin eventos calculados'}
                             </div>
                         </CTableDataCell>
@@ -341,11 +332,11 @@ const SchoolYear = () => {
                             </CBadge>
                         </CTableDataCell>
                         <CTableDataCell className="text-end">
-                          <CButton color="light" size="sm" variant="ghost" className="me-2" onClick={() => handleEditSchoolYear(sy)}>
-                              <CIcon icon={cilPencil} className="text-warning"/>
+                          <CButton color="warning" size="sm" variant="ghost" className="me-2" onClick={() => handleEditSchoolYear(sy)}>
+                              <CIcon icon={cilPencil} />
                           </CButton>
-                          <CButton color="light" size="sm" variant="ghost" onClick={() => handleDeleteClick(sy.id_school_year)}>
-                              <CIcon icon={cilTrash} className="text-danger"/>
+                          <CButton color="danger" size="sm" variant="ghost" onClick={() => handleDeleteClick(sy.id_school_year)}>
+                              <CIcon icon={cilTrash} />
                           </CButton>
                         </CTableDataCell>
                       </CTableRow>
@@ -361,12 +352,12 @@ const SchoolYear = () => {
         <CModalHeader><CModalTitle>Confirmar Eliminación</CModalTitle></CModalHeader>
         <CModalBody>¿Eliminar este periodo? Esto podría afectar historiales académicos.</CModalBody>
         <CModalFooter>
-          <CButton color="secondary" variant="ghost" onClick={() => setShowDeleteModal(false)}>Cancelar</CButton>
+          <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</CButton>
           <CButton color="danger" onClick={confirmDelete} disabled={isDeleting}>Eliminar</CButton>
         </CModalFooter>
       </CModal>
 
-      {/* MODAL CREAR/EDITAR (SIMPLIFICADO) */}
+      {/* MODAL CREAR/EDITAR */}
       <CModal visible={showModal} onClose={handleCloseModal} backdrop="static" size="lg">
         <CModalHeader>
           <CModalTitle>{editMode ? 'Editar Periodo Escolar' : 'Nuevo Periodo Escolar'}</CModalTitle>
@@ -374,7 +365,7 @@ const SchoolYear = () => {
         <CModalBody>
           <CAlert color="info">
             <CIcon icon={cilCalendar} className="me-2"/>
-            El sistema calculará automáticamente los <strong>días hábiles</strong> y <strong>feriados</strong> (Venezuela) basándose en las fechas que ingreses.
+            El sistema calculará automáticamente los <strong>días hábiles</strong> y <strong>feriados</strong> basándose en las fechas.
           </CAlert>
           
           <CForm>
@@ -430,9 +421,9 @@ const SchoolYear = () => {
           </CForm>
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" variant="ghost" onClick={handleCloseModal}>Cancelar</CButton>
+          <CButton color="secondary" onClick={handleCloseModal}>Cancelar</CButton>
           <CButton color="success" onClick={handleSaveSchoolYear} disabled={isSaving}>
-            {isSaving ? 'Calculando y Guardando...' : 'Guardar Periodo'}
+            {isSaving ? 'Guardando...' : 'Guardar Periodo'}
           </CButton>
         </CModalFooter>
       </CModal>

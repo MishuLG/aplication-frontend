@@ -25,30 +25,30 @@ import {
   CNavItem,
   CNavLink,
   CTabContent,
-  CTabPane
+  CTabPane,
+  CRow, // <--- AGREGADO
+  CCol  // <--- AGREGADO
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
-import { cilPencil, cilTrash, cilPlus, cilSearch, cilDescription, cilCloudDownload, cilNotes } from '@coreui/icons';
+import { cilPencil, cilTrash, cilPlus, cilDescription, cilCloudDownload, cilNotes } from '@coreui/icons';
 import API_URL from '../../../config';
 
 const GradeReports = () => {
   // --- ESTADOS ---
-  const [activeTab, setActiveTab] = useState(1); // 1: Comunicados (Original), 2: Boletines PDF (Nuevo)
+  const [activeTab, setActiveTab] = useState(1);
   
-  // Data: Comunicados
+  // Data
   const [newsletters, setNewsletters] = useState([]);
   const [tutors, setTutors] = useState([]); 
-  
-  // Data: Boletines
-  const [enrollments, setEnrollments] = useState([]); // Lista de alumnos con notas
+  const [enrollments, setEnrollments] = useState([]);
 
-  // Form Data (Para comunicados)
+  // Form Data
   const [formData, setFormData] = useState({
     uid_users: '',
     title: '',
     content: '',
-    date_sent: '',
-    newsletter_status: '',
+    date_sent: new Date().toISOString().split('T')[0],
+    newsletter_status: 'active',
     recipients: '',
   });
   
@@ -58,64 +58,52 @@ const GradeReports = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [errorMessage, setErrorMessage] = useState(null);
 
-  const getToken = () => localStorage.getItem('token');
-
+  // URLs
   const newslettersUrl = `${API_URL}/newsletters`;
   const tutorsUrl = `${API_URL}/tutors`; 
-  const enrollmentsUrl = `${API_URL}/enrollments`; // Para los boletines
-  const bulletinUrl = `${API_URL}/api/bulletin`;   // Ruta de descarga PDF
+  const enrollmentsUrl = `${API_URL}/enrollments`; 
+  const bulletinUrl = `${API_URL}/api/bulletin`;
+
+  // Helper de Autenticación
+  const authenticatedFetch = async (url, options = {}) => {
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '#/login';
+    }
+    return response;
+  };
 
   useEffect(() => {
-    fetchNewsletters();
-    fetchTutors();
-    fetchEnrollmentsForBulletins();
+    fetchData();
   }, []);
 
-  // --- FETCHERS ---
-  const fetchNewsletters = async () => {
-    try {
-      const response = await fetch(newslettersUrl, {
-        headers: { 'Authorization': `Bearer ${getToken()}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setNewsletters(data);
-      }
-    } catch (error) { console.error('Error fetching newsletters:', error); }
-  };
-
-  const fetchTutors = async () => {
-    try {
-      const response = await fetch(tutorsUrl, {
-        headers: { 'Authorization': `Bearer ${getToken()}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setTutors(data);
-      }
-    } catch (error) { console.error('Error fetching tutors:', error); }
-  };
-
-  const fetchEnrollmentsForBulletins = async () => {
+  const fetchData = async () => {
       try {
-          // Necesitamos una ruta que traiga inscripciones con datos de alumno y sección
-          // Si tu API /enrollments ya hace include de Student y Section, esto funcionará.
-          const response = await fetch(enrollmentsUrl, {
-              headers: { 'Authorization': `Bearer ${getToken()}` }
-          });
-          if(response.ok) {
-              const data = await response.json();
-              setEnrollments(Array.isArray(data) ? data : []);
-          }
-      } catch (error) { console.error("Error fetching enrollments", error); }
+          const [resNews, resTutors, resEnroll] = await Promise.all([
+              authenticatedFetch(newslettersUrl),
+              authenticatedFetch(tutorsUrl),
+              authenticatedFetch(enrollmentsUrl)
+          ]);
+
+          if (resNews.ok) setNewsletters(await resNews.json());
+          if (resTutors.ok) setTutors(await resTutors.json());
+          if (resEnroll.ok) setEnrollments(await resEnroll.json());
+
+      } catch (error) { console.error("Error cargando datos:", error); }
   };
 
-  // --- LÓGICA DE DESCARGA DE BOLETÍN ---
+  // --- DESCARGA PDF ---
   const handleDownloadBulletin = async (id_enrollment) => {
       try {
+          const token = localStorage.getItem('token');
           const response = await fetch(`${bulletinUrl}/${id_enrollment}`, {
               method: 'GET',
-              headers: { 'Authorization': `Bearer ${getToken()}` }
+              headers: { 'Authorization': `Bearer ${token}` }
           });
 
           if (response.ok) {
@@ -123,186 +111,166 @@ const GradeReports = () => {
               const url = window.URL.createObjectURL(blob);
               const link = document.createElement('a');
               link.href = url;
-              link.setAttribute('download', `Boletin_Notas_${id_enrollment}.pdf`);
+              link.setAttribute('download', `Boletin_${id_enrollment}.pdf`);
               document.body.appendChild(link);
               link.click();
               link.parentNode.removeChild(link);
           } else {
-              alert("No se pudo generar el boletín. Verifique si el estudiante tiene notas registradas.");
+              alert("No se pudo generar el boletín. Verifique si hay notas cargadas.");
           }
-      } catch (error) {
-          console.error("Download error", error);
-          alert("Error de conexión al descargar.");
-      }
+      } catch (error) { alert("Error de conexión."); }
   };
 
-  // --- CRUD COMUNICADOS (Lógica Original) ---
+  // --- CRUD COMUNICADOS ---
   const handleSaveNewsletter = async () => {
     setErrorMessage(null);
-    if (!formData.uid_users) return setErrorMessage('Debe seleccionar un Tutor.');
+    
+    // Validaciones
+    if (!formData.uid_users) return setErrorMessage('Seleccione un Tutor.');
     if (!formData.title.trim()) return setErrorMessage('El título es obligatorio.');
     if (!formData.content.trim()) return setErrorMessage('El contenido es obligatorio.');
-    if (!formData.date_sent) return setErrorMessage('La fecha de envío es obligatoria.');
-    if (!formData.newsletter_status) return setErrorMessage('Debe seleccionar un estado.');
-    if (!formData.recipients.trim()) return setErrorMessage('Especifique los destinatarios (ej: "Padres de familia").');
+    if (!formData.recipients.trim()) return setErrorMessage('El grupo destinatario es obligatorio.');
 
     try {
       const method = editMode ? 'PUT' : 'POST';
       const url = editMode ? `${newslettersUrl}/${selectedNewsletter.id_newsletters}` : newslettersUrl;
 
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method,
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`
-        },
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Error al guardar');
+      if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.message || 'Error al guardar');
+      }
 
-      fetchNewsletters();
+      await fetchData(); 
       handleCloseModal();
-      alert(editMode ? 'Reporte actualizado correctamente' : 'Reporte creado correctamente');
     } catch (error) { setErrorMessage(error.message); }
   };
 
-  const handleEditNewsletter = (newsletter) => {
-    setSelectedNewsletter(newsletter);
+  const handleEditNewsletter = (item) => {
+    setSelectedNewsletter(item);
     setFormData({
-      uid_users: newsletter.uid_users,
-      title: newsletter.title,
-      content: newsletter.content,
-      date_sent: newsletter.date_sent ? newsletter.date_sent.split('T')[0] : '', 
-      newsletter_status: newsletter.newsletter_status,
-      recipients: newsletter.recipients,
+      uid_users: item.uid_users,
+      title: item.title,
+      content: item.content,
+      date_sent: item.date_sent ? item.date_sent.split('T')[0] : '', 
+      newsletter_status: item.newsletter_status || 'active',
+      recipients: item.recipients,
     });
-    setEditMode(true); setShowModal(true); setErrorMessage(null);
+    setEditMode(true); setShowModal(true);
   };
 
   const handleDeleteNewsletter = async (id) => {
-    if (!window.confirm("¿Estás seguro de eliminar este reporte permanentemente?")) return;
+    if (!window.confirm("¿Eliminar reporte?")) return;
     try {
-      const response = await fetch(`${newslettersUrl}/${id}`, { 
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${getToken()}` }
+      await authenticatedFetch(`${newslettersUrl}/${id}`, { method: 'DELETE' });
+      fetchData();
+    } catch (error) { alert('Error al eliminar.'); }
+  };
+
+  const handleCloseModal = () => { 
+      setShowModal(false); 
+      setFormData({ 
+          uid_users: '', 
+          title: '', 
+          content: '', 
+          date_sent: new Date().toISOString().split('T')[0], 
+          newsletter_status: 'active', 
+          recipients: '' 
       });
-      if (!response.ok) throw new Error('Error del servidor');
-      fetchNewsletters();
-    } catch (error) { alert('Error al eliminar el reporte.'); }
+      setEditMode(false); 
+      setErrorMessage(null);
   };
 
-  const resetForm = () => {
-    setFormData({
-      uid_users: '', title: '', content: '', date_sent: '', newsletter_status: '', recipients: '',
-    });
-    setEditMode(false); setSelectedNewsletter(null); setErrorMessage(null);
-  };
-
-  const handleCloseModal = () => { setShowModal(false); resetForm(); };
-
-  // Filtrado
-  const filteredNewsletters = newsletters.filter((item) => {
-    const term = searchTerm.toLowerCase();
-    const title = item.title ? item.title.toLowerCase() : '';
-    return title.includes(term);
-  });
+  // --- FILTROS ---
+  const filteredNewsletters = newsletters.filter((item) => 
+    item.title?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const filteredEnrollments = enrollments.filter((item) => {
-      // Filtra alumnos activos o cursando para descargar boletines
-      // O busca por nombre si 'item.Student' existe
       const term = searchTerm.toLowerCase();
-      const studentName = item.Student ? `${item.Student.first_name_student} ${item.Student.last_name_student}`.toLowerCase() : '';
-      return studentName.includes(term);
+      const name = item.Student ? `${item.Student.first_name} ${item.Student.last_name}`.toLowerCase() : '';
+      const dni = item.Student?.dni || '';
+      return name.includes(term) || dni.includes(term);
   });
 
   return (
-    <CCard>
-      <CCardHeader className="d-flex justify-content-between align-items-center">
-        <h5><CIcon icon={cilDescription} className="me-2"/>Gestión de Informes y Boletines</h5>
+    <CCard className="shadow-sm border-0">
+      <CCardHeader className="bg-transparent border-0 d-flex align-items-center py-3">
+        <h5 className="mb-0 text-body"><CIcon icon={cilDescription} className="me-2"/>Gestión de Informes y Boletines</h5>
       </CCardHeader>
+      
       <CCardBody>
-        
-        {/* TABS DE NAVEGACIÓN */}
-        <CNav variant="tabs" className="mb-4" style={{cursor:'pointer'}}>
+        <CNav variant="tabs" className="mb-4 border-bottom-0" style={{cursor:'pointer'}}>
             <CNavItem>
                 <CNavLink active={activeTab === 1} onClick={() => setActiveTab(1)}>
-                    <CIcon icon={cilDescription} className="me-2"/> Comunicados Generales
+                    <CIcon icon={cilDescription} className="me-2"/> Comunicados
                 </CNavLink>
             </CNavItem>
             <CNavItem>
                 <CNavLink active={activeTab === 2} onClick={() => setActiveTab(2)}>
-                    <CIcon icon={cilNotes} className="me-2"/> Boletines de Calificaciones
+                    <CIcon icon={cilNotes} className="me-2"/> Boletines de Notas
                 </CNavLink>
             </CNavItem>
         </CNav>
 
         <CTabContent>
-            {/* --- TAB 1: COMUNICADOS (NEWSLETTERS) --- */}
+            {/* TAB 1: COMUNICADOS */}
             <CTabPane visible={activeTab === 1}>
                 <div className="d-flex justify-content-between mb-3">
-                    <div style={{ maxWidth: '300px' }}>
-                        <CFormInput 
-                            placeholder="Buscar comunicado..." 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            prefix={<CIcon icon={cilSearch} />}
-                        />
-                    </div>
+                    <CFormInput 
+                        placeholder="Buscar por título..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{ maxWidth: '300px' }}
+                    />
                     <CButton color="primary" onClick={() => setShowModal(true)}>
-                        <CIcon icon={cilPlus} /> Crear Comunicado
+                        <CIcon icon={cilPlus} className="me-2"/> Crear Comunicado
                     </CButton>
                 </div>
 
-                <CTable bordered hover responsive striped className="align-middle">
-                <CTableHead color="dark">
+                <CTable hover responsive align="middle">
+                <CTableHead>
                     <CTableRow>
-                    <CTableHeaderCell>#</CTableHeaderCell>
                     <CTableHeaderCell>Título</CTableHeaderCell>
-                    <CTableHeaderCell>Fecha Envío</CTableHeaderCell>
-                    <CTableHeaderCell>Destinatarios</CTableHeaderCell>
+                    <CTableHeaderCell>Fecha</CTableHeaderCell>
+                    <CTableHeaderCell>Destinatario</CTableHeaderCell>
                     <CTableHeaderCell>Estado</CTableHeaderCell>
-                    <CTableHeaderCell>Acciones</CTableHeaderCell>
+                    <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
                     </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                    {filteredNewsletters.length > 0 ? (
-                        filteredNewsletters.map((newsletter) => (
-                        <CTableRow key={newsletter.id_newsletters}>
-                            <CTableDataCell>{newsletter.id_newsletters}</CTableDataCell>
-                            <CTableDataCell>{newsletter.title}</CTableDataCell>
-                            <CTableDataCell>{newsletter.date_sent}</CTableDataCell>
-                            <CTableDataCell>{newsletter.recipients}</CTableDataCell>
+                    {filteredNewsletters.map((item) => (
+                        <CTableRow key={item.id_newsletters}>
+                            <CTableDataCell className="fw-semibold">{item.title}</CTableDataCell>
+                            <CTableDataCell className="text-body-secondary small">{item.date_sent}</CTableDataCell>
+                            <CTableDataCell>{item.recipients}</CTableDataCell>
                             <CTableDataCell>
-                                <CBadge color={newsletter.newsletter_status === 'active' ? 'success' : 'secondary'}>
-                                    {newsletter.newsletter_status === 'active' ? 'Activo' : 'Inactivo'}
+                                <CBadge color={item.newsletter_status === 'active' ? 'success' : 'secondary'}>
+                                    {item.newsletter_status === 'active' ? 'Activo' : 'Inactivo'}
                                 </CBadge>
                             </CTableDataCell>
-                            <CTableDataCell>
-                            <CButton color="warning" variant="outline" size="sm" onClick={() => handleEditNewsletter(newsletter)} className="me-2">
-                                <CIcon icon={cilPencil} />
-                            </CButton>
-                            <CButton color="danger" variant="outline" size="sm" onClick={() => handleDeleteNewsletter(newsletter.id_newsletters)}>
-                                <CIcon icon={cilTrash} />
-                            </CButton>
+                            <CTableDataCell className="text-end">
+                                <CButton color="warning" variant="ghost" size="sm" onClick={() => handleEditNewsletter(item)} className="me-2"><CIcon icon={cilPencil}/></CButton>
+                                <CButton color="danger" variant="ghost" size="sm" onClick={() => handleDeleteNewsletter(item.id_newsletters)}><CIcon icon={cilTrash}/></CButton>
                             </CTableDataCell>
                         </CTableRow>
-                        ))
-                    ) : (
-                        <CTableRow>
-                            <CTableDataCell colSpan="6" className="text-center py-4 text-muted">No hay comunicados.</CTableDataCell>
-                        </CTableRow>
-                    )}
+                    ))}
+                    {filteredNewsletters.length === 0 && <CTableRow><CTableDataCell colSpan="5" className="text-center text-body-secondary py-4">No hay comunicados registrados.</CTableDataCell></CTableRow>}
                 </CTableBody>
                 </CTable>
             </CTabPane>
 
-            {/* --- TAB 2: BOLETINES (PDF DOWNLOAD) --- */}
+            {/* TAB 2: BOLETINES */}
             <CTabPane visible={activeTab === 2}>
-                <CAlert color="info">
-                    Seleccione un estudiante de la lista para generar y descargar su boletín de calificaciones oficial en PDF.
+                <CAlert color="info" className="d-flex align-items-center">
+                    <CIcon icon={cilCloudDownload} className="me-2"/>
+                    Descargue el boletín oficial de calificaciones por estudiante.
                 </CAlert>
+                
                 <div className="mb-3" style={{ maxWidth: '300px' }}>
                     <CFormInput 
                         placeholder="Buscar estudiante..." 
@@ -311,148 +279,103 @@ const GradeReports = () => {
                     />
                 </div>
                 
-                <CTable bordered hover responsive striped className="align-middle">
-                    <CTableHead color="dark">
+                <CTable hover responsive align="middle">
+                    <CTableHead>
                         <CTableRow>
                             <CTableHeaderCell>Estudiante</CTableHeaderCell>
                             <CTableHeaderCell>Grado / Sección</CTableHeaderCell>
-                            <CTableHeaderCell>Promedio Actual</CTableHeaderCell>
+                            <CTableHeaderCell>Promedio</CTableHeaderCell>
                             <CTableHeaderCell>Estado</CTableHeaderCell>
-                            <CTableHeaderCell className="text-end">Descargar</CTableHeaderCell>
+                            <CTableHeaderCell className="text-end">Acción</CTableHeaderCell>
                         </CTableRow>
                     </CTableHead>
                     <CTableBody>
-                        {filteredEnrollments.length > 0 ? (
-                            filteredEnrollments.map((enrollment) => (
-                                <CTableRow key={enrollment.id_enrollment}>
-                                    <CTableDataCell>
-                                        <span className="fw-bold">
-                                            {enrollment.Student ? `${enrollment.Student.first_name_student} ${enrollment.Student.last_name_student}` : `ID: ${enrollment.id_student}`}
-                                        </span>
-                                    </CTableDataCell>
-                                    <CTableDataCell>
-                                        {enrollment.Section ? `Sección ${enrollment.Section.num_section}` : 'N/A'}
-                                        {/* Aquí podrías agregar el Grado si viene en la data anidada */}
-                                    </CTableDataCell>
-                                    <CTableDataCell>{enrollment.final_average || '0.00'}</CTableDataCell>
-                                    <CTableDataCell>
-                                        <CBadge color={enrollment.status === 'Cursando' ? 'primary' : enrollment.status === 'Aprobado' ? 'success' : 'warning'}>
-                                            {enrollment.status}
+                        {filteredEnrollments.map((enrollment) => (
+                            <CTableRow key={enrollment.id_enrollment}>
+                                <CTableDataCell>
+                                    <span className="fw-bold d-block">
+                                        {enrollment.Student?.first_name} {enrollment.Student?.last_name}
+                                    </span>
+                                    <span className="small text-body-secondary">{enrollment.Student?.dni}</span>
+                                </CTableDataCell>
+                                <CTableDataCell>
+                                    {enrollment.Section ? (
+                                        <CBadge color="light" textColor="dark" className="border">
+                                            {enrollment.Section.Grade?.name_grade} "{enrollment.Section.num_section}"
                                         </CBadge>
-                                    </CTableDataCell>
-                                    <CTableDataCell className="text-end">
-                                        <CButton 
-                                            color="dark" 
-                                            size="sm" 
-                                            onClick={() => handleDownloadBulletin(enrollment.id_enrollment)}
-                                            title="Descargar PDF"
-                                        >
-                                            <CIcon icon={cilCloudDownload} className="me-2"/>
-                                            Boletín Oficial
-                                        </CButton>
-                                    </CTableDataCell>
-                                </CTableRow>
-                            ))
-                        ) : (
-                            <CTableRow>
-                                <CTableDataCell colSpan="5" className="text-center py-4 text-muted">
-                                    No se encontraron estudiantes inscritos con calificaciones.
+                                    ) : <span className="text-danger small">Sin Sección</span>}
+                                </CTableDataCell>
+                                <CTableDataCell className="fw-bold">{enrollment.final_average}</CTableDataCell>
+                                <CTableDataCell>
+                                    <CBadge color="info">{enrollment.status}</CBadge>
+                                </CTableDataCell>
+                                <CTableDataCell className="text-end">
+                                    <CButton color="dark" variant="outline" size="sm" onClick={() => handleDownloadBulletin(enrollment.id_enrollment)}>
+                                        <CIcon icon={cilCloudDownload} className="me-2"/> PDF
+                                    </CButton>
                                 </CTableDataCell>
                             </CTableRow>
-                        )}
+                        ))}
+                        {filteredEnrollments.length === 0 && <CTableRow><CTableDataCell colSpan="5" className="text-center text-body-secondary py-4">No hay estudiantes inscritos.</CTableDataCell></CTableRow>}
                     </CTableBody>
                 </CTable>
             </CTabPane>
         </CTabContent>
 
-        {/* Agregamos backdrop="static" y keyboard={false} para mayor seguridad */}
-        <CModal 
-            visible={showModal} 
-            onClose={handleCloseModal} 
-            size="lg" 
-            backdrop="static" 
-            keyboard={false}
-        >
-          <CModalHeader closeButton>
-            <CModalTitle>{editMode ? 'Editar Comunicado' : 'Nuevo Comunicado'}</CModalTitle>
+        {/* MODAL COMUNICADO */}
+        <CModal visible={showModal} onClose={handleCloseModal} backdrop="static" size="lg">
+          <CModalHeader>
+            <CModalTitle>{editMode ? 'Editar' : 'Crear'} Comunicado</CModalTitle>
           </CModalHeader>
           <CModalBody>
             {errorMessage && <CAlert color="danger">{errorMessage}</CAlert>}
-            
             <CForm>
-              <div className="mb-3">
-                <label className="form-label fw-bold">Tutor (Representante) *</label>
-                <CFormSelect
-                    value={formData.uid_users}
-                    onChange={(e) => setFormData({ ...formData, uid_users: e.target.value })}
-                >
-                    <option value="">-- Seleccione un Tutor Registrado --</option>
-                    {tutors.map((tutor) => (
-                    <option key={tutor.uid_users} value={tutor.uid_users}>
-                        {tutor.first_name} {tutor.last_name} (DNI: {tutor.dni})
-                    </option>
-                    ))}
-                </CFormSelect>
-              </div>
-
-              <div className="row">
-                  <div className="col-md-8 mb-3">
-                    <label className="form-label fw-bold">Título del Reporte *</label>
-                    <CFormInput
-                        type="text"
-                        placeholder="Ej: Reunión de Padres"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-md-4 mb-3">
-                    <label className="form-label fw-bold">Fecha de Envío *</label>
-                    <CFormInput
-                        type="date"
-                        value={formData.date_sent}
-                        onChange={(e) => setFormData({ ...formData, date_sent: e.target.value })}
-                    />
-                  </div>
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label fw-bold">Contenido / Mensaje *</label>
-                <CFormTextarea
-                    rows="4"
-                    value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                />
-              </div>
-
-              <div className="row">
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label fw-bold">Grupo Destinatario *</label>
-                    <CFormInput
-                        type="text"
-                        value={formData.recipients}
-                        onChange={(e) => setFormData({ ...formData, recipients: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label fw-bold">Estado *</label>
-                    <CFormSelect
-                        value={formData.newsletter_status}
-                        onChange={(e) => setFormData({ ...formData, newsletter_status: e.target.value })}
-                    >
+              <CRow className="mb-3">
+                  <CCol md={6}>
+                    <label className="form-label">Tutor Destinatario</label>
+                    <CFormSelect value={formData.uid_users} onChange={(e) => setFormData({ ...formData, uid_users: e.target.value })}>
                         <option value="">-- Seleccione --</option>
+                        {tutors.map((t) => (
+                            <option key={t.uid_users || t.id_tutor} value={t.uid_users}>
+                                {t.User ? `${t.User.first_name} ${t.User.last_name}` : 'Usuario desconocido'} (DNI: {t.dni})
+                            </option>
+                        ))}
+                    </CFormSelect>
+                  </CCol>
+                  <CCol md={6}>
+                    <label className="form-label">Grupo Destinatario (Opcional)</label>
+                    <CFormInput placeholder="Ej: Padres de 1er Grado" value={formData.recipients} onChange={(e) => setFormData({ ...formData, recipients: e.target.value })} />
+                  </CCol>
+              </CRow>
+
+              <div className="mb-3">
+                <label className="form-label">Título del Comunicado</label>
+                <CFormInput value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
+              </div>
+              
+              <div className="mb-3">
+                <label className="form-label">Contenido</label>
+                <CFormTextarea rows="5" value={formData.content} onChange={(e) => setFormData({ ...formData, content: e.target.value })} />
+              </div>
+
+              <CRow>
+                  <CCol md={6}>
+                    <label className="form-label">Fecha de Envío</label>
+                    <CFormInput type="date" value={formData.date_sent} onChange={(e) => setFormData({ ...formData, date_sent: e.target.value })} />
+                  </CCol>
+                  <CCol md={6}>
+                    <label className="form-label">Estado</label>
+                    <CFormSelect value={formData.newsletter_status} onChange={(e) => setFormData({ ...formData, newsletter_status: e.target.value })}>
                         <option value="active">Activo</option>
                         <option value="inactive">Inactivo</option>
                     </CFormSelect>
-                  </div>
-              </div>
-
+                  </CCol>
+              </CRow>
             </CForm>
           </CModalBody>
           <CModalFooter>
             <CButton color="secondary" onClick={handleCloseModal}>Cancelar</CButton>
-            <CButton color="primary" onClick={handleSaveNewsletter}>
-              {editMode ? 'Guardar Cambios' : 'Crear Comunicado'}
-            </CButton>
+            <CButton color="primary" onClick={handleSaveNewsletter}>Guardar Comunicado</CButton>
           </CModalFooter>
         </CModal>
       </CCardBody>

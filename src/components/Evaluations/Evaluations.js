@@ -1,516 +1,458 @@
 import React, { useState, useEffect } from 'react';
 import {
-  CButton,
-  CCard,
-  CCardBody,
-  CCardHeader,
-  CTable,
-  CTableBody,
-  CTableDataCell,
-  CTableHead,
-  CTableHeaderCell,
-  CTableRow,
-  CModal,
-  CModalHeader,
-  CModalTitle,
-  CModalBody,
-  CModalFooter,
-  CForm,
-  CFormInput,
-  CFormSelect,
-  CFormTextarea,
-  CAlert,
-  CRow,
-  CCol,
+  CButton, CCard, CCardBody, CCardHeader, CTable, CTableBody, CTableDataCell,
+  CTableHead, CTableHeaderCell, CTableRow, CModal, CModalHeader, CModalTitle,
+  CModalBody, CModalFooter, CForm, CFormInput, CFormSelect, CFormTextarea,
+  CAlert, CRow, CCol, CBadge
 } from '@coreui/react';
+import { cilPencil, cilTrash } from '@coreui/icons';
+import CIcon from '@coreui/icons-react';
 import API_URL from '../../../config';
 
 const Evaluations = () => {
   const [evaluations, setEvaluations] = useState([]);
   
-  // Listas para los Selects (Cargadas desde la BD)
-  const [studentsList, setStudentsList] = useState([]);
-  const [subjectsList, setSubjectsList] = useState([]);
-  const [schedulesList, setSchedulesList] = useState([]);
+  // --- DATOS MAESTROS ---
+  const [allStudents, setAllStudents] = useState([]);
+  const [allSections, setAllSections] = useState([]);
+  const [allSchedules, setAllSchedules] = useState([]);
 
+  // --- DATOS FILTRADOS ---
+  const [filteredStudents, setFilteredStudents] = useState([]);
+  const [filteredSchedules, setFilteredSchedules] = useState([]);
+
+  // Estado del Formulario
+  const [selectedSectionId, setSelectedSectionId] = useState(''); // Filtro Maestro
+  const [requiredDay, setRequiredDay] = useState(''); // Para mostrar el día obligatorio
+  
   const [formData, setFormData] = useState({
     id_student: '',
     id_subject: '',
-    id_class_schedules: '', // IMPORTANTE: Este campo es obligatorio para evitar el error 23502
+    id_class_schedules: '',
     evaluation_date: '',
     evaluation_type: '',
     score: '',
     max_score: '',
-    total_grade: '',
     observations: '',
   });
 
-  // Estados de la Interfaz
+  // UI
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
-  const [filter, setFilter] = useState({ id_student: '', evaluation_type: '' });
-
-  // Estados de Validación y Alertas
-  const [errors, setErrors] = useState({});
   const [alertBox, setAlertBox] = useState(null);
+  const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
-
-  // Estados para el Modal de Borrado
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [idToDelete, setIdToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
+  // URLs
   const evaluationsUrl = `${API_URL}/evaluations`;
-
-  // Campos que NO pueden estar vacíos
-  const requiredFields = [
-    'id_student', 
-    'id_subject', 
-    'id_class_schedules', // Validamos que el horario esté presente
-    'evaluation_date', 
-    'evaluation_type', 
-    'score', 
-    'max_score'
-  ];
+  const studentsUrl = `${API_URL}/students`;
+  const sectionsUrl = `${API_URL}/sections`;
+  const schedulesUrl = `${API_URL}/class-schedules`; 
 
   useEffect(() => {
-    fetchEvaluations();
-    fetchDropdownData();
+    fetchInitialData();
   }, []);
 
-  // --- 1. CARGA DE DATOS ---
+  // --- AUTENTICACIÓN ---
+  const authenticatedFetch = async (url, options = {}) => {
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '#/login';
+    }
+    return response;
+  };
 
-  const fetchEvaluations = async () => {
+  const fetchInitialData = async () => {
     try {
-      const response = await fetch(evaluationsUrl);
-      if (!response.ok) throw new Error('Error de red al cargar evaluaciones');
-      const data = await response.json();
-      setEvaluations(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error(error);
-      setAlertBox('No se pudieron cargar las evaluaciones.');
+        const [resEval, resStu, resSec, resSch] = await Promise.all([
+            authenticatedFetch(evaluationsUrl),
+            authenticatedFetch(studentsUrl),
+            authenticatedFetch(sectionsUrl),
+            authenticatedFetch(schedulesUrl)
+        ]);
+
+        if (resEval.ok) setEvaluations(await resEval.json());
+        if (resStu.ok) setAllStudents(await resStu.json());
+        if (resSec.ok) setAllSections(await resSec.json());
+        if (resSch.ok) setAllSchedules(await resSch.json());
+
+    } catch (e) { 
+        console.error(e);
+        setAlertBox("Error de conexión al cargar datos.");
     }
   };
 
-  const fetchDropdownData = async () => {
-      // Cargar listas auxiliares para llenar los selects
-      try {
-          const resSt = await fetch(`${API_URL}/students`);
-          if (resSt.ok) setStudentsList(await resSt.json());
-          
-          const resSub = await fetch(`${API_URL}/subjects`);
-          if (resSub.ok) setSubjectsList(await resSub.json());
+  // --- LÓGICA DE CASCADA ---
+  const handleSectionChange = (e) => {
+      const sectionId = e.target.value;
+      setSelectedSectionId(sectionId);
 
-          const resSch = await fetch(`${API_URL}/class_schedules`);
-          if (resSch.ok) setSchedulesList(await resSch.json());
-      } catch (e) { console.error("Error cargando listas auxiliares"); }
-  };
+      // Limpiar campos dependientes
+      setFormData(prev => ({ ...prev, id_student: '', id_class_schedules: '', id_subject: '' }));
+      setRequiredDay('');
+      setErrors({});
 
-  // --- 2. VALIDACIONES ---
+      if (sectionId) {
+          const students = allStudents.filter(s => String(s.id_section) === String(sectionId));
+          setFilteredStudents(students);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    let newValue = value;
-
-    // Validación numérica para notas
-    if (['score', 'max_score', 'total_grade'].includes(name)) {
-         newValue = value.replace(/[^0-9.]/g, ''); // Solo permitir números y punto decimal
-    }
-
-    setFormData(prev => ({ ...prev, [name]: newValue }));
-    
-    // Limpiar el error visual si el usuario ya corrigió el campo
-    if (errors[name]) {
-        setErrors(prev => ({ ...prev, [name]: null }));
-    }
-    setAlertBox(null);
-  };
-
-  // Validar al salir del campo
-  const handleBlur = (e) => {
-      const { name, value } = e.target;
-      if (requiredFields.includes(name) && !value) {
-          setErrors(prev => ({ ...prev, [name]: 'Este campo es obligatorio.' }));
+          const schedules = allSchedules.filter(s => String(s.id_section) === String(sectionId));
+          setFilteredSchedules(schedules);
+      } else {
+          setFilteredStudents([]);
+          setFilteredSchedules([]);
       }
   };
 
-  const validateForm = () => {
-      const newErrors = {};
-      let isValid = true;
+  const handleScheduleChange = (e) => {
+      const scheduleId = e.target.value;
+      const scheduleObj = allSchedules.find(s => String(s.id_class_schedules) === String(scheduleId));
 
-      // a) Verificar campos obligatorios vacíos
-      requiredFields.forEach(field => {
-          if (!formData[field] || String(formData[field]).trim() === '') {
-              newErrors[field] = 'Este campo es obligatorio.';
-              isValid = false;
-          }
-      });
+      if (scheduleObj) {
+          setRequiredDay(scheduleObj.day_of_week); // Guardamos el día permitido (Ej: Lunes)
+          setFormData(prev => ({
+              ...prev,
+              id_class_schedules: scheduleId,
+              id_subject: scheduleObj.id_subject 
+          }));
 
-      // b) Validar que Nota <= Nota Máxima
-      if (formData.score && formData.max_score) {
-          if (parseFloat(formData.score) > parseFloat(formData.max_score)) {
-              newErrors.score = 'La nota no puede ser mayor a la nota máxima.';
-              isValid = false;
+          // Si ya había fecha, la re-validamos
+          if (formData.evaluation_date) {
+              validateDayOfWeek(formData.evaluation_date, scheduleObj.day_of_week);
           }
+      } else {
+          setRequiredDay('');
+          setFormData(prev => ({ ...prev, id_class_schedules: '', id_subject: '' }));
       }
+  };
+
+  const handleDateChange = (e) => {
+      const date = e.target.value;
+      setFormData(prev => ({ ...prev, evaluation_date: date }));
       
-      // c) Validar Fecha Futura
-      if (formData.evaluation_date) {
-          const d = new Date(formData.evaluation_date);
-          const today = new Date();
-          today.setHours(0,0,0,0);
-          if (d > today) {
-              newErrors.evaluation_date = 'No se puede registrar una fecha futura.';
-              isValid = false;
+      // Validar contra el horario seleccionado
+      if (formData.id_class_schedules) {
+          const scheduleObj = allSchedules.find(s => String(s.id_class_schedules) === String(formData.id_class_schedules));
+          if (scheduleObj) {
+              validateDayOfWeek(date, scheduleObj.day_of_week);
           }
       }
-
-      setErrors(newErrors);
-      if (!isValid) setAlertBox('Por favor, corrija los errores marcados en rojo.');
-      return isValid;
   };
 
-  // --- 3. OPERACIONES CRUD ---
+  const validateDayOfWeek = (dateString, requiredDayName) => {
+      const date = new Date(dateString);
+      const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+      const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+      const dayNumber = adjustedDate.getDay(); 
+      
+      const daysMap = {
+          'Domingo': 0, 'Lunes': 1, 'Martes': 2, 'Miércoles': 3, 'Miercoles': 3,
+          'Jueves': 4, 'Viernes': 5, 'Sábado': 6, 'Sabado': 6
+      };
+
+      const requiredDayNumber = daysMap[requiredDayName];
+
+      if (requiredDayNumber !== undefined && dayNumber !== requiredDayNumber) {
+          setErrors(prev => ({
+              ...prev, 
+              evaluation_date: `⛔ Error: Debes seleccionar una fecha que sea ${requiredDayName}.`
+          }));
+          return false;
+      } else {
+          setErrors(prev => ({ ...prev, evaluation_date: null }));
+          return true;
+      }
+  };
 
   const handleSave = async () => {
-    // Si hay errores de validación, detenemos aquí.
-    if (!validateForm()) return;
-
+    if (!formData.id_student) return setAlertBox("Seleccione un estudiante.");
+    if (!formData.id_class_schedules) return setAlertBox("Seleccione un horario/materia.");
+    if (errors.evaluation_date) return setAlertBox("Corrija la fecha antes de guardar.");
+    
     setIsSaving(true);
-    setAlertBox(null);
-
-    // Formatear datos para el backend
-    const payload = {
-        ...formData,
-        id_student: parseInt(formData.id_student),
-        id_subject: parseInt(formData.id_subject),
-        id_class_schedules: parseInt(formData.id_class_schedules), // Obligatorio para evitar error 23502
-        score: parseFloat(formData.score),
-        max_score: parseFloat(formData.max_score),
-        total_grade: formData.total_grade ? parseFloat(formData.total_grade) : 0
-    };
-
     try {
-      const method = editMode ? 'PUT' : 'POST';
-      const url = editMode ? `${evaluationsUrl}/${selectedEvaluation.id_evaluation}` : evaluationsUrl;
+        const method = editMode ? 'PUT' : 'POST';
+        const url = editMode ? `${evaluationsUrl}/${selectedEvaluation.id_evaluation}` : evaluationsUrl;
 
-      const response = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        const payload = {
+            ...formData,
+            id_student: parseInt(formData.id_student),
+            id_subject: parseInt(formData.id_subject),
+            id_class_schedules: parseInt(formData.id_class_schedules),
+            score: parseFloat(formData.score),
+            max_score: parseFloat(formData.max_score),
+        };
+
+        const response = await authenticatedFetch(url, {
+            method,
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.message || 'Error al guardar');
+        }
+
+        await fetchInitialData(); 
+        handleCloseModal();
+    } catch (error) {
+        setAlertBox(error.message);
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+      setShowModal(false);
+      setEditMode(false);
+      setErrors({});
+      setAlertBox(null);
+      setSelectedSectionId('');
+      setRequiredDay('');
+      setFormData({
+          id_student: '', id_subject: '', id_class_schedules: '',
+          evaluation_date: '', evaluation_type: '', score: '', max_score: '', observations: ''
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Mostrar mensaje de error específico del backend (ej. Duplicado)
-        throw new Error(data.message || 'Error al guardar.');
-      }
-
-      await fetchEvaluations();
-      handleCloseModal();
-    } catch (error) {
-      setAlertBox(error.message);
-    } finally {
-      setIsSaving(false);
-    }
   };
 
-  const handleDeleteClick = (id) => {
-    setIdToDelete(id);
-    setShowDeleteModal(true);
-  };
-
+  const handleDeleteClick = (id) => { setIdToDelete(id); setShowDeleteModal(true); };
+  
   const confirmDelete = async () => {
-    if (!idToDelete) return;
-    setIsDeleting(true);
-    try {
-        const res = await fetch(`${evaluationsUrl}/${idToDelete}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error('Error al eliminar.');
-        await fetchEvaluations();
-        setShowDeleteModal(false);
-    } catch (error) {
-        setAlertBox('No se pudo eliminar el registro.');
-        setShowDeleteModal(false);
-    } finally {
-        setIsDeleting(false);
-    }
+      try {
+          const res = await authenticatedFetch(`${evaluationsUrl}/${idToDelete}`, { method: 'DELETE' });
+          if(res.ok) {
+              setEvaluations(prev => prev.filter(e => e.id_evaluation !== idToDelete));
+              setShowDeleteModal(false);
+          } else { throw new Error(); }
+      } catch (e) { setAlertBox("Error al eliminar"); }
   };
-
-  // --- 4. HELPERS DE INTERFAZ ---
 
   const handleEdit = (ev) => {
+    const student = allStudents.find(s => s.id_student === ev.id_student);
+    if (student && student.id_section) {
+        setSelectedSectionId(student.id_section);
+        const sectionId = student.id_section;
+        setFilteredStudents(allStudents.filter(s => String(s.id_section) === String(sectionId)));
+        setFilteredSchedules(allSchedules.filter(s => String(s.id_section) === String(sectionId)));
+        
+        // Buscar el horario para setear el día requerido en edición
+        const schedule = allSchedules.find(s => s.id_class_schedules === ev.id_class_schedules);
+        if(schedule) setRequiredDay(schedule.day_of_week);
+    }
+
     setSelectedEvaluation(ev);
     setFormData({
       id_student: ev.id_student,
       id_subject: ev.id_subject,
-      id_class_schedules: ev.id_class_schedules || '',
-      evaluation_date: ev.evaluation_date || '',
-      evaluation_type: ev.evaluation_type || '',
+      id_class_schedules: ev.id_class_schedules,
+      evaluation_date: ev.evaluation_date ? ev.evaluation_date.split('T')[0] : '',
+      evaluation_type: ev.evaluation_type,
       score: ev.score,
       max_score: ev.max_score,
-      total_grade: ev.total_grade || '',
-      observations: ev.observations || '',
+      observations: ev.observations || ''
     });
     setEditMode(true);
-    setErrors({});
-    setAlertBox(null);
     setShowModal(true);
   };
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    // Resetear formulario
-    setFormData({
-      id_student: '', id_subject: '', id_class_schedules: '',
-      evaluation_date: '', evaluation_type: '', score: '', max_score: '',
-      total_grade: '', observations: ''
-    });
-    setEditMode(false);
-    setSelectedEvaluation(null);
-    setErrors({});
-    setAlertBox(null);
-  };
-
-  // Función para mostrar el texto de error debajo del input
-  const renderError = (field) => {
-      if (!errors[field]) return null;
-      return <div style={{color: '#dc3545', fontSize: '0.875em', marginTop: '0.25rem'}}>{errors[field]}</div>;
-  };
-
-  // Filtros de búsqueda en la tabla
-  const filteredList = evaluations.filter(e => {
-      const typeMatch = (e.evaluation_type || '').toLowerCase().includes(filter.evaluation_type.toLowerCase());
-      // Buscar por ID de estudiante
-      const studentMatch = String(e.id_student).includes(filter.id_student);
-      return typeMatch && studentMatch;
-  });
-
-  // Funciones para obtener nombres legibles en la tabla usando las listas cargadas
-  const getStudentName = (id) => {
-      const s = studentsList.find(i => i.id_student === id);
-      return s ? `${s.first_name_student} ${s.last_name_student}` : id;
-  };
-  const getSubjectName = (id) => {
-      const s = subjectsList.find(i => i.id_subject === id);
-      return s ? s.name_subject || s.subject_name : id;
-  };
-
   return (
-    <CCard>
-      <CCardHeader>
-        <h5>Evaluaciones</h5>
-        <CButton color="success" onClick={() => { handleCloseModal(); setShowModal(true); }}>Agregar Evaluación</CButton>
+    <CCard className="shadow-sm border-0">
+      <CCardHeader className="bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
+            <h5 className="mb-0 text-body">Gestión de Evaluaciones y Notas</h5>
+            <CButton color="primary" onClick={() => setShowModal(true)}>Registrar Nota</CButton>
       </CCardHeader>
+      
       <CCardBody>
         {alertBox && !showModal && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
         
-        <div className="mb-3 d-flex gap-2">
-            <CFormInput 
-                placeholder="Filtrar por ID Estudiante" 
-                value={filter.id_student} 
-                onChange={e=>setFilter({...filter, id_student: e.target.value})} 
-                style={{maxWidth: '200px'}}
-            />
-            <CFormInput 
-                placeholder="Filtrar por Tipo" 
-                value={filter.evaluation_type} 
-                onChange={e=>setFilter({...filter, evaluation_type: e.target.value})} 
-                style={{maxWidth: '200px'}}
-            />
-        </div>
-
-        <CTable bordered hover responsive>
+        <CTable hover responsive align="middle">
           <CTableHead>
             <CTableRow>
-              <CTableHeaderCell>ID</CTableHeaderCell>
               <CTableHeaderCell>Estudiante</CTableHeaderCell>
-              <CTableHeaderCell>Materia</CTableHeaderCell>
+              <CTableHeaderCell>Materia / Horario</CTableHeaderCell>
               <CTableHeaderCell>Tipo</CTableHeaderCell>
               <CTableHeaderCell>Fecha</CTableHeaderCell>
-              <CTableHeaderCell>Nota / Max</CTableHeaderCell>
-              <CTableHeaderCell>Acciones</CTableHeaderCell>
+              <CTableHeaderCell>Nota / Máx</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
-            {filteredList.map((ev) => (
+            {evaluations.map((ev) => (
               <CTableRow key={ev.id_evaluation}>
-                <CTableDataCell>{ev.id_evaluation}</CTableDataCell>
-                <CTableDataCell>{getStudentName(ev.id_student)}</CTableDataCell>
-                <CTableDataCell>{getSubjectName(ev.id_subject)}</CTableDataCell>
-                <CTableDataCell>{ev.evaluation_type}</CTableDataCell>
-                <CTableDataCell>{ev.evaluation_date}</CTableDataCell>
-                <CTableDataCell>{ev.score} / {ev.max_score}</CTableDataCell>
+                <CTableDataCell className="fw-semibold">{ev.student_name}</CTableDataCell>
                 <CTableDataCell>
-                  <CButton color="warning" size="sm" onClick={() => handleEdit(ev)} className="me-2">Editar</CButton>
-                  <CButton color="danger" size="sm" onClick={() => handleDeleteClick(ev.id_evaluation)}>Eliminar</CButton>
+                    <div className="fw-bold">{ev.subject_name}</div>
+                    <small className="text-body-secondary">{ev.schedule_info}</small>
+                </CTableDataCell>
+                <CTableDataCell>{ev.evaluation_type === 'summative' ? 'Sumativa' : 'Formativa'}</CTableDataCell>
+                <CTableDataCell className="text-body-secondary">{ev.evaluation_date}</CTableDataCell>
+                <CTableDataCell>
+                    <CBadge color={ev.score >= (ev.max_score/2) ? 'success' : 'danger'}>
+                        {ev.score} / {ev.max_score}
+                    </CBadge>
+                </CTableDataCell>
+                <CTableDataCell className="text-end">
+                    <CButton color="warning" size="sm" variant="ghost" onClick={() => handleEdit(ev)} className="me-2">
+                        <CIcon icon={cilPencil} />
+                    </CButton>
+                    <CButton color="danger" size="sm" variant="ghost" onClick={() => handleDeleteClick(ev.id_evaluation)}>
+                        <CIcon icon={cilTrash} />
+                    </CButton>
                 </CTableDataCell>
               </CTableRow>
             ))}
-             {filteredList.length === 0 && <CTableRow><CTableDataCell colSpan="7" className="text-center">No hay registros.</CTableDataCell></CTableRow>}
+             {evaluations.length === 0 && <CTableRow><CTableDataCell colSpan="6" className="text-center text-body-secondary py-4">No hay notas registradas.</CTableDataCell></CTableRow>}
           </CTableBody>
         </CTable>
+      </CCardBody>
 
-        {/* --- MODAL DE ELIMINACIÓN --- */}
-        <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} backdrop="static">
-            <CModalHeader><CModalTitle>Confirmar Eliminación</CModalTitle></CModalHeader>
-            <CModalBody>¿Está seguro de que desea eliminar esta evaluación? Esta acción no se puede deshacer.</CModalBody>
-            <CModalFooter>
-                <CButton color="danger" onClick={confirmDelete} disabled={isDeleting}>Eliminar</CButton>
-                <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</CButton>
-            </CModalFooter>
-        </CModal>
-
-        {/* --- MODAL DE CREACIÓN / EDICIÓN --- */}
-        <CModal visible={showModal} onClose={handleCloseModal} backdrop="static" size="lg">
-          <CModalHeader><CModalTitle>{editMode ? 'Editar Evaluación' : 'Nueva Evaluación'}</CModalTitle></CModalHeader>
-          <CModalBody>
+      {/* MODAL PRINCIPAL */}
+      <CModal visible={showModal} onClose={handleCloseModal} backdrop="static" size="lg">
+        <CModalHeader>
+            <CModalTitle>{editMode ? 'Editar' : 'Registrar'} Nota</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
             {alertBox && <CAlert color="danger">{alertBox}</CAlert>}
+            
             <CForm>
+                {/* 1. SELECCIÓN DE SECCIÓN */}
                 <CRow className="mb-3">
-                    <CCol md={6}>
-                        {/* SELECT ESTUDIANTE */}
+                    <CCol md={12}>
                         <CFormSelect 
-                            label="Estudiante *" 
-                            name="id_student" 
-                            value={formData.id_student} 
-                            onChange={handleInputChange} 
-                            onBlur={handleBlur} 
-                            invalid={!!errors.id_student}
+                            label="1. Seleccione Sección (Filtro)" 
+                            value={selectedSectionId} 
+                            onChange={handleSectionChange}
+                            disabled={editMode}
                         >
-                            <option value="">Seleccione un estudiante...</option>
-                            {studentsList.map(s => (
-                                <option key={s.id_student} value={s.id_student}>
-                                    {s.first_name_student} {s.last_name_student}
+                            <option value="">-- Seleccione el Grado/Sección --</option>
+                            {allSections.map(sec => (
+                                <option key={sec.id_section} value={sec.id_section}>
+                                    {sec.Grade?.name_grade} - Sección "{sec.num_section}"
                                 </option>
                             ))}
                         </CFormSelect>
-                        {renderError('id_student')}
-                    </CCol>
-
-                    <CCol md={6}>
-                        {/* SELECT MATERIA */}
-                        <CFormSelect 
-                            label="Materia *" 
-                            name="id_subject" 
-                            value={formData.id_subject} 
-                            onChange={handleInputChange} 
-                            onBlur={handleBlur} 
-                            invalid={!!errors.id_subject}
-                        >
-                            <option value="">Seleccione una materia...</option>
-                            {subjectsList.map(s => (
-                                <option key={s.id_subject} value={s.id_subject}>
-                                    {s.name_subject || s.subject_name}
-                                </option>
-                            ))}
-                        </CFormSelect>
-                        {renderError('id_subject')}
                     </CCol>
                 </CRow>
 
                 <CRow className="mb-3">
+                    {/* 2. ESTUDIANTE */}
                     <CCol md={6}>
-                        {/* SELECT TIPO DE EVALUACIÓN */}
                         <CFormSelect 
-                            label="Tipo de Evaluación *" 
-                            name="evaluation_type" 
-                            value={formData.evaluation_type} 
-                            onChange={handleInputChange} 
-                            onBlur={handleBlur} 
-                            invalid={!!errors.evaluation_type}
+                            label="2. Estudiante" 
+                            name="id_student" 
+                            value={formData.id_student}
+                            onChange={(e) => setFormData({...formData, id_student: e.target.value})}
+                            disabled={!selectedSectionId}
                         >
-                            <option value="">Seleccione el tipo...</option>
-                            <option value="Exam">Examen</option>
-                            <option value="Homework">Tarea</option>
-                            <option value="Project">Proyecto</option>
-                            <option value="Participation">Participación</option>
+                            <option value="">-- Seleccione Estudiante --</option>
+                            {filteredStudents.map(st => (
+                                <option key={st.id_student} value={st.id_student}>
+                                    {st.first_name} {st.last_name} ({st.dni})
+                                </option>
+                            ))}
                         </CFormSelect>
-                        {renderError('evaluation_type')}
                     </CCol>
+
+                    {/* 3. HORARIO */}
+                    <CCol md={6}>
+                        <CFormSelect 
+                            label="3. Materia y Horario" 
+                            name="id_class_schedules" 
+                            value={formData.id_class_schedules}
+                            onChange={handleScheduleChange}
+                            disabled={!selectedSectionId}
+                        >
+                            <option value="">-- Seleccione Materia --</option>
+                            {filteredSchedules.map(sch => (
+                                <option key={sch.id_class_schedules} value={sch.id_class_schedules}>
+                                    {sch.Subject?.name_subject} ({sch.day_of_week} {sch.start_time})
+                                </option>
+                            ))}
+                        </CFormSelect>
+                    </CCol>
+                </CRow>
+
+                <CRow className="mb-3">
                     <CCol md={6}>
                         <CFormInput 
                             type="date" 
-                            label="Fecha *" 
+                            label="4. Fecha de la Evaluación" 
                             name="evaluation_date" 
-                            value={formData.evaluation_date} 
-                            onChange={handleInputChange} 
-                            onBlur={handleBlur} 
-                            invalid={!!errors.evaluation_date} 
+                            value={formData.evaluation_date}
+                            onChange={handleDateChange}
+                            invalid={!!errors.evaluation_date}
                         />
-                        {renderError('evaluation_date')}
+                        {/* MENSAJE DE AYUDA INTELIGENTE */}
+                        {requiredDay && !errors.evaluation_date && (
+                            <div className="text-info small mt-1">
+                                ℹ️ Esta materia se ve los <strong>{requiredDay}</strong>. Elige una fecha que coincida.
+                            </div>
+                        )}
+                        {errors.evaluation_date && <div className="text-danger small mt-1">{errors.evaluation_date}</div>}
+                    </CCol>
+                    
+                    <CCol md={6}>
+                        <CFormSelect 
+                            label="5. Tipo de Evaluación" 
+                            name="evaluation_type" 
+                            value={formData.evaluation_type}
+                            onChange={(e) => setFormData({...formData, evaluation_type: e.target.value})}
+                        >
+                            <option value="">-- Tipo --</option>
+                            <option value="formative">Formativa (Tarea/Taller)</option>
+                            <option value="summative">Sumativa (Examen/Proyecto)</option>
+                        </CFormSelect>
                     </CCol>
                 </CRow>
 
                 <CRow className="mb-3">
-                    <CCol md={4}>
-                         <CFormInput 
+                    <CCol md={6}>
+                        <CFormInput 
                             type="number" 
-                            label="Nota Obtenida *" 
+                            label="Nota del Estudiante (Obtenida)" 
                             name="score" 
                             value={formData.score} 
-                            onChange={handleInputChange} 
-                            onBlur={handleBlur} 
-                            invalid={!!errors.score} 
-                         />
-                         {renderError('score')}
+                            onChange={(e) => setFormData({...formData, score: e.target.value})} 
+                        />
                     </CCol>
-                    <CCol md={4}>
-                         <CFormInput 
+                    <CCol md={6}>
+                        <CFormInput 
                             type="number" 
-                            label="Nota Máxima *" 
+                            label="Valor Total de la Evaluación (Máxima)" 
                             name="max_score" 
                             value={formData.max_score} 
-                            onChange={handleInputChange} 
-                            onBlur={handleBlur} 
-                            invalid={!!errors.max_score} 
-                         />
-                         {renderError('max_score')}
-                    </CCol>
-                    <CCol md={4}>
-                         {/* SELECT HORARIO (CRÍTICO) */}
-                        <CFormSelect 
-                            label="Horario/Sección *" 
-                            name="id_class_schedules" 
-                            value={formData.id_class_schedules} 
-                            onChange={handleInputChange} 
-                            onBlur={handleBlur} 
-                            invalid={!!errors.id_class_schedules}
-                        >
-                            <option value="">Seleccione un horario...</option>
-                            {schedulesList.map(sch => (
-                                <option key={sch.id_class_schedules} value={sch.id_class_schedules}>
-                                    {sch.id_class_schedules} - {sch.day_of_week} ({sch.start_time})
-                                </option>
-                            ))}
-                        </CFormSelect>
-                        {renderError('id_class_schedules')}
+                            onChange={(e) => setFormData({...formData, max_score: e.target.value})} 
+                        />
                     </CCol>
                 </CRow>
 
-                <div className="mb-3">
-                    <CFormTextarea 
-                        label="Observaciones (Opcional)" 
-                        name="observations" 
-                        value={formData.observations} 
-                        onChange={handleInputChange} 
-                        rows={3} 
-                    />
-                </div>
-                
-                {/* Campo opcional de Nota Total si se requiere */}
-                 {/* <CFormInput type="number" label="Total (Op.)" name="total_grade" value={formData.total_grade} onChange={handleInputChange} /> */}
-
+                <CFormTextarea label="Observaciones" rows={2} value={formData.observations} onChange={(e) => setFormData({...formData, observations: e.target.value})} />
             </CForm>
-          </CModalBody>
-          <CModalFooter>
-            <CButton color="success" onClick={handleSave} disabled={isSaving}>Guardar</CButton>
+        </CModalBody>
+        <CModalFooter>
             <CButton color="secondary" onClick={handleCloseModal}>Cancelar</CButton>
-          </CModalFooter>
-        </CModal>
-      </CCardBody>
+            <CButton color="success" onClick={handleSave} disabled={isSaving || !!errors.evaluation_date}>Guardar Nota</CButton>
+        </CModalFooter>
+      </CModal>
+
+      {/* MODAL BORRAR */}
+      <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
+            <CModalHeader><CModalTitle>Confirmar</CModalTitle></CModalHeader>
+            <CModalBody>¿Seguro que desea eliminar esta nota?</CModalBody>
+            <CModalFooter>
+                <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>No</CButton>
+                <CButton color="danger" onClick={confirmDelete}>Sí, Eliminar</CButton>
+            </CModalFooter>
+      </CModal>
     </CCard>
   );
 };
+
 export default Evaluations;

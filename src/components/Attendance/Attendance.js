@@ -22,438 +22,353 @@ import {
   CAlert,
   CRow,
   CCol,
+  CBadge
 } from '@coreui/react';
+import CIcon from '@coreui/icons-react';
+import { cilCheckCircle, cilPencil, cilTrash } from '@coreui/icons';
 import API_URL from '../../../config';
 
 const Attendance = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   
-  // Estados para las listas desplegables (Dropdowns)
-  const [studentsList, setStudentsList] = useState([]);
+  // Datos maestros
+  const [allStudents, setAllStudents] = useState([]);
   const [sectionsList, setSectionsList] = useState([]);
+  
+  // Datos filtrados para el formulario
+  const [availableStudents, setAvailableStudents] = useState([]); 
 
   const [formData, setFormData] = useState({
     id_student: '',
     id_section: '',
-    attendance_date: '',
-    status: '',
+    attendance_date: new Date().toISOString().split('T')[0], 
+    status: 'Presente',
     remarks: '',
   });
 
-  // Estados de UI
+  // UI States
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedAttendance, setSelectedAttendance] = useState(null);
-  const [filter, setFilter] = useState({ id_student: '', attendance_date: '' });
+  const [filter, setFilter] = useState({ studentName: '', date: '' });
 
-  // Estados de Validación y Feedback
+  // Feedback
   const [errors, setErrors] = useState({});
   const [alertBox, setAlertBox] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  
-  // Estados para Modal de Eliminación
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [idToDelete, setIdToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
+  // URLs
   const attendanceUrl = `${API_URL}/attendance`;
-  const studentsUrl = `${API_URL}/students`; // Asumiendo que esta ruta existe
-  const sectionsUrl = `${API_URL}/sections`; // Asumiendo que esta ruta existe
-
-  const requiredFields = ['id_student', 'id_section', 'attendance_date', 'status'];
+  const studentsUrl = `${API_URL}/students`; 
+  const sectionsUrl = `${API_URL}/sections`; 
 
   useEffect(() => {
-    fetchAttendanceRecords();
-    fetchStudents();
-    fetchSections();
+    fetchInitialData();
   }, []);
 
-  // --- Funciones de Carga de Datos ---
+  // Efecto: Filtro dinámico de estudiantes al cambiar sección
+  useEffect(() => {
+    if (formData.id_section) {
+        const filtered = allStudents.filter(s => String(s.id_section) === String(formData.id_section));
+        setAvailableStudents(filtered);
+    } else {
+        setAvailableStudents([]);
+    }
+  }, [formData.id_section, allStudents]);
 
-  const fetchAttendanceRecords = async () => {
+  // --- HELPER AUTENTICACIÓN ---
+  const authenticatedFetch = async (url, options = {}) => {
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '#/login';
+    }
+    return response;
+  };
+
+  const fetchInitialData = async () => {
     try {
-      const response = await fetch(attendanceUrl);
-      if (!response.ok) throw new Error('Error al cargar asistencias');
-      const data = await response.json();
-      setAttendanceRecords(Array.isArray(data) ? data : []);
+      const [resAtt, resSec, resStu] = await Promise.all([
+          authenticatedFetch(attendanceUrl),
+          authenticatedFetch(sectionsUrl),
+          authenticatedFetch(studentsUrl)
+      ]);
+
+      if (resAtt.ok) setAttendanceRecords(await resAtt.json());
+      if (resSec.ok) setSectionsList(await resSec.json());
+      if (resStu.ok) setAllStudents(await resStu.json());
+
     } catch (error) {
       console.error(error);
-      setAlertBox('Error al cargar los registros de asistencia.');
+      setAlertBox('Error de conexión al cargar datos.');
     }
   };
-
-  const fetchStudents = async () => {
-    try {
-      const response = await fetch(studentsUrl);
-      if (response.ok) {
-        const data = await response.json();
-        setStudentsList(Array.isArray(data) ? data : []);
-      }
-    } catch (error) {
-      console.error("Error cargando estudiantes:", error);
-    }
-  };
-
-  const fetchSections = async () => {
-    try {
-      const response = await fetch(sectionsUrl);
-      if (response.ok) {
-        const data = await response.json();
-        setSectionsList(Array.isArray(data) ? data : []);
-      }
-    } catch (error) {
-      console.error("Error cargando secciones:", error);
-    }
-  };
-
-  // --- Validaciones y Manejo de Inputs ---
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: '' }));
-    setAlertBox(null);
-  };
-
-  const handleBlur = (e) => {
-    const { name, value } = e.target;
-    if (requiredFields.includes(name) && String(value || '').trim() === '') {
-      setErrors((prev) => ({ ...prev, [name]: 'Este campo es obligatorio.' }));
-    }
   };
 
   const validateForm = () => {
     const newErrors = {};
-    let isValid = true;
-
-    requiredFields.forEach((field) => {
-      if (!formData[field] || String(formData[field]).trim() === '') {
-        newErrors[field] = 'Este campo es obligatorio.';
-        isValid = false;
-      }
-    });
-
-    // Validación de fecha futura
-    if (formData.attendance_date) {
-        const date = new Date(formData.attendance_date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (date > today) {
-            newErrors.attendance_date = 'La fecha no puede ser futura.';
-            isValid = false;
-        }
-    }
+    if (!formData.id_section) newErrors.id_section = 'Seleccione una sección.';
+    if (!formData.id_student) newErrors.id_student = 'Seleccione un estudiante.';
+    if (!formData.attendance_date) newErrors.attendance_date = 'Fecha requerida.';
+    if (!formData.status) newErrors.status = 'Estado requerido.';
 
     setErrors(newErrors);
-    if (!isValid) setAlertBox('Por favor, completa los campos requeridos.');
-    return isValid;
+    return Object.keys(newErrors).length === 0;
   };
 
-  // --- CRUD Operations ---
-
-  const handleSaveAttendance = async () => {
+  const handleSave = async () => {
     if (!validateForm()) return;
-
     setIsSaving(true);
-    setAlertBox(null);
-
-    const payload = {
-        id_student: parseInt(formData.id_student),
-        id_section: parseInt(formData.id_section),
-        attendance_date: formData.attendance_date,
-        status: formData.status,
-        remarks: formData.remarks 
-    };
-
+    
     try {
       const method = editMode ? 'PUT' : 'POST';
-      const url = editMode ? `${attendanceUrl}/${selectedAttendance.id_attendance}` : attendanceUrl;
+      const idParam = selectedAttendance ? (selectedAttendance.attendance_id || selectedAttendance.id_attendance) : '';
+      const url = editMode ? `${attendanceUrl}/${idParam}` : attendanceUrl;
 
-      const response = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+      const response = await authenticatedFetch(url, {
+        method,
+        body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Error al guardar.');
-      }
+      const data = await response.json();
 
-      await fetchAttendanceRecords();
+      if (!response.ok) throw new Error(data.message || 'Error al guardar.');
+
+      const resAtt = await authenticatedFetch(attendanceUrl);
+      if (resAtt.ok) setAttendanceRecords(await resAtt.json());
+      
       handleCloseModal();
     } catch (error) {
-      console.error(error);
       setAlertBox(error.message);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeleteClick = (id) => {
-    setIdToDelete(id);
-    setShowDeleteModal(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!idToDelete) return;
-    setIsDeleting(true);
+  const handleDelete = async () => {
     try {
-      const response = await fetch(`${attendanceUrl}/${idToDelete}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Error al eliminar.');
-      
-      await fetchAttendanceRecords();
-      setShowDeleteModal(false);
-      setIdToDelete(null);
-    } catch (error) {
-      setAlertBox('No se pudo eliminar el registro.');
-      setShowDeleteModal(false); 
-    } finally {
-      setIsDeleting(false);
-    }
+        const idParam = idToDelete.attendance_id || idToDelete.id_attendance;
+        const res = await authenticatedFetch(`${attendanceUrl}/${idParam}`, { method: 'DELETE' });
+        if(res.ok) {
+            setAttendanceRecords(prev => prev.filter(a => 
+                (a.attendance_id || a.id_attendance) !== (idToDelete.attendance_id || idToDelete.id_attendance)
+            ));
+            setShowDeleteModal(false);
+        } else {
+            alert("Error al eliminar");
+        }
+    } catch (e) { alert("Error de conexión"); }
   };
 
-  // --- UI Helpers ---
-
-  const handleEdit = (attendance) => {
-    setSelectedAttendance(attendance);
+  const handleEdit = (item) => {
+    setSelectedAttendance(item);
     setFormData({
-      id_student: attendance.id_student || '',
-      id_section: attendance.id_section || '',
-      attendance_date: attendance.attendance_date || '',
-      status: attendance.status || '',
-      remarks: attendance.remarks || '',
+      id_section: item.Section?.id_section || item.id_section || '',
+      id_student: item.Student?.id_student || item.id_student || '',
+      attendance_date: item.attendance_date || '',
+      status: item.status || 'Presente',
+      remarks: item.observations || item.remarks || ''
     });
     setEditMode(true);
-    setErrors({});
-    setAlertBox(null);
     setShowModal(true);
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setFormData({
-      id_student: '',
-      id_section: '',
-      attendance_date: '',
-      status: '',
-      remarks: '',
-    });
     setEditMode(false);
-    setSelectedAttendance(null);
+    setFormData({
+        id_student: '',
+        id_section: '',
+        attendance_date: new Date().toISOString().split('T')[0],
+        status: 'Presente',
+        remarks: '',
+    });
     setErrors({});
     setAlertBox(null);
   };
 
-  const renderErrorText = (field) => {
-    if (!errors[field]) return null;
-    return <div style={{ color: '#dc3545', fontSize: '0.875em', marginTop: '0.25rem' }}>{errors[field]}</div>;
-  };
-
-  // Filtros en la tabla
-  const filteredRecords = attendanceRecords.filter((attendance) => {
-    // Buscamos el nombre del estudiante en la lista cargada para filtrar por nombre (más amigable) o por ID
-    const studentObj = studentsList.find(s => s.id_student === attendance.id_student);
-    const studentName = studentObj ? `${studentObj.first_name_student} ${studentObj.last_name_student}` : '';
-    
-    const searchLower = filter.id_student.toLowerCase();
-    
-    const studentMatch = 
-        String(attendance.id_student).includes(searchLower) || 
-        studentName.toLowerCase().includes(searchLower);
-
-    const dateMatch = (attendance.attendance_date || '').includes(filter.attendance_date);
-    return studentMatch && dateMatch;
+  const filteredRecords = attendanceRecords.filter(item => {
+      const name = item.Student ? `${item.Student.first_name} ${item.Student.last_name}` : '';
+      const matchName = name.toLowerCase().includes(filter.studentName.toLowerCase());
+      const matchDate = filter.date ? item.attendance_date === filter.date : true;
+      return matchName && matchDate;
   });
 
-  // Función auxiliar para obtener nombre del estudiante por ID para la tabla
-  const getStudentName = (id) => {
-      const s = studentsList.find(item => item.id_student === id);
-      return s ? `${s.first_name_student} ${s.last_name_student}` : id;
-  };
-
-  // Función auxiliar para obtener nombre de la sección por ID para la tabla
-  const getSectionName = (id) => {
-      const s = sectionsList.find(item => item.id_section === id);
-      return s ? `Sección ${s.num_section}` : id;
-  };
-
   return (
-    <CCard>
-      <CCardHeader>
-        <h5>Registros de Asistencia</h5>
-        <CButton color="success" onClick={() => { handleCloseModal(); setShowModal(true); }}>
-          Agregar Registro
+    <CCard className="shadow-sm border-0">
+      <CCardHeader className="bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
+        <h5 className="mb-0 text-body"><CIcon icon={cilCheckCircle} className="me-2"/>Control de Asistencia</h5>
+        <CButton color="primary" onClick={() => { handleCloseModal(); setShowModal(true); }}>
+          Registrar Asistencia
         </CButton>
       </CCardHeader>
+      
       <CCardBody>
-        {alertBox && !showModal && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
-
-        <div className="mb-3 d-flex gap-2">
-          <CFormInput
-            placeholder="Buscar por estudiante..."
-            name="id_student"
-            value={filter.id_student}
-            onChange={(e) => setFilter({ ...filter, id_student: e.target.value })}
-            style={{ maxWidth: '250px' }}
-          />
-          <CFormInput
-            type="date"
-            name="attendance_date"
-            value={filter.attendance_date}
-            onChange={(e) => setFilter({ ...filter, attendance_date: e.target.value })}
-            style={{ maxWidth: '200px' }}
-          />
+        <div className="d-flex gap-3 mb-4">
+            <CFormInput 
+                placeholder="Buscar estudiante..." 
+                value={filter.studentName}
+                onChange={e => setFilter({...filter, studentName: e.target.value})}
+                style={{maxWidth: '300px'}}
+            />
+            <CFormInput 
+                type="date"
+                value={filter.date}
+                onChange={e => setFilter({...filter, date: e.target.value})}
+                style={{maxWidth: '200px'}}
+            />
         </div>
 
-        <CTable bordered hover responsive>
+        <CTable hover responsive align="middle">
           <CTableHead>
             <CTableRow>
+              <CTableHeaderCell>Fecha</CTableHeaderCell>
               <CTableHeaderCell>Estudiante</CTableHeaderCell>
               <CTableHeaderCell>Sección</CTableHeaderCell>
-              <CTableHeaderCell>Fecha</CTableHeaderCell>
               <CTableHeaderCell>Estado</CTableHeaderCell>
-              <CTableHeaderCell>Observaciones</CTableHeaderCell>
-              <CTableHeaderCell>Acciones</CTableHeaderCell>
+              <CTableHeaderCell>Observación</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
-            {filteredRecords.map((attendance) => (
-              <CTableRow key={attendance.id_attendance}>
-                <CTableDataCell>{getStudentName(attendance.id_student)}</CTableDataCell>
-                <CTableDataCell>{getSectionName(attendance.id_section)}</CTableDataCell>
-                <CTableDataCell>{attendance.attendance_date}</CTableDataCell>
-                <CTableDataCell>{attendance.status}</CTableDataCell>
-                <CTableDataCell>{attendance.remarks}</CTableDataCell>
+            {filteredRecords.map((item, idx) => (
+              <CTableRow key={idx}>
+                <CTableDataCell className="text-body-secondary small">{item.attendance_date}</CTableDataCell>
                 <CTableDataCell>
-                  <CButton color="warning" size="sm" onClick={() => handleEdit(attendance)} className="me-2">
-                    Editar
-                  </CButton>
-                  <CButton color="danger" size="sm" onClick={() => handleDeleteClick(attendance.id_attendance)}>
-                    Eliminar
-                  </CButton>
+                    {item.Student ? (
+                        <span className="fw-semibold">{item.Student.first_name} {item.Student.last_name}</span>
+                    ) : <span className="text-danger small">Estudiante eliminado</span>}
+                </CTableDataCell>
+                <CTableDataCell>
+                    {item.Section ? (
+                        <CBadge color="light" textColor="dark" className="border">
+                            {item.Section.Grade?.name_grade} "{item.Section.num_section}"
+                        </CBadge>
+                    ) : '-'}
+                </CTableDataCell>
+                <CTableDataCell>
+                    <CBadge color={
+                        item.status === 'Presente' ? 'success' : 
+                        item.status === 'Ausente' ? 'danger' : 'warning'
+                    }>
+                        {item.status}
+                    </CBadge>
+                </CTableDataCell>
+                <CTableDataCell className="small text-body-secondary text-truncate" style={{maxWidth: '200px'}}>
+                    {item.observations || '-'}
+                </CTableDataCell>
+                <CTableDataCell className="text-end">
+                    <CButton size="sm" color="warning" variant="ghost" onClick={() => handleEdit(item)} className="me-2"><CIcon icon={cilPencil}/></CButton>
+                    <CButton size="sm" color="danger" variant="ghost" onClick={() => { setIdToDelete(item); setShowDeleteModal(true); }}><CIcon icon={cilTrash}/></CButton>
                 </CTableDataCell>
               </CTableRow>
             ))}
-             {filteredRecords.length === 0 && (
-                <CTableRow>
-                    <CTableDataCell colSpan="6" className="text-center">No se encontraron registros.</CTableDataCell>
-                </CTableRow>
+            {filteredRecords.length === 0 && (
+                <CTableRow><CTableDataCell colSpan="6" className="text-center text-body-secondary py-4">No hay registros de asistencia.</CTableDataCell></CTableRow>
             )}
           </CTableBody>
         </CTable>
+      </CCardBody>
 
-        {/* --- MODAL DE ELIMINACIÓN --- */}
-        <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} backdrop="static">
-          <CModalHeader>
-            <CModalTitle>Confirmar Eliminación</CModalTitle>
-          </CModalHeader>
-          <CModalBody>¿Eliminar este registro de asistencia?</CModalBody>
-          <CModalFooter>
-            <CButton color="danger" onClick={confirmDelete} disabled={isDeleting}>Eliminar</CButton>
-            <CButton color="secondary" onClick={() => setShowDeleteModal(false)} disabled={isDeleting}>Cancelar</CButton>
-          </CModalFooter>
-        </CModal>
-
-        {/* --- MODAL DE EDICIÓN / CREACIÓN --- */}
-        <CModal visible={showModal} onClose={handleCloseModal} backdrop="static">
-          <CModalHeader>
+      {/* MODAL */}
+      <CModal visible={showModal} onClose={handleCloseModal} backdrop="static" size="lg">
+        <CModalHeader>
             <CModalTitle>{editMode ? 'Editar Asistencia' : 'Nueva Asistencia'}</CModalTitle>
-          </CModalHeader>
-          <CModalBody>
+        </CModalHeader>
+        <CModalBody>
             {alertBox && <CAlert color="danger">{alertBox}</CAlert>}
             <CForm>
-              <CRow className="mb-3">
-                <CCol md={6}>
-                    {/* SELECT PARA ESTUDIANTES */}
-                    <CFormSelect
-                        label="Estudiante *"
+                <CRow className="mb-3">
+                    <CCol md={6}>
+                        <CFormSelect 
+                            label="1. Seleccione Sección" 
+                            name="id_section" 
+                            value={formData.id_section} 
+                            onChange={handleInputChange}
+                            invalid={!!errors.id_section}
+                        >
+                            <option value="">-- Sección --</option>
+                            {sectionsList.map(s => (
+                                <option key={s.id_section} value={s.id_section}>
+                                    {s.Grade?.name_grade} "{s.num_section}"
+                                </option>
+                            ))}
+                        </CFormSelect>
+                        {errors.id_section && <div className="text-danger small">{errors.id_section}</div>}
+                    </CCol>
+                    <CCol md={6}>
+                        <CFormInput 
+                            type="date" 
+                            label="Fecha" 
+                            name="attendance_date" 
+                            value={formData.attendance_date} 
+                            onChange={handleInputChange}
+                        />
+                    </CCol>
+                </CRow>
+
+                <div className="mb-3">
+                    <label className="form-label">2. Seleccione Estudiante</label>
+                    <CFormSelect 
                         name="id_student"
                         value={formData.id_student}
                         onChange={handleInputChange}
-                        onBlur={handleBlur}
+                        disabled={!formData.id_section}
                         invalid={!!errors.id_student}
                     >
-                        <option value="">Seleccionar Estudiante</option>
-                        {studentsList.map(student => (
-                            <option key={student.id_student} value={student.id_student}>
-                                {student.first_name_student} {student.last_name_student} ({student.id_student})
+                        <option value="">-- {formData.id_section ? 'Estudiante' : 'Primero elija sección'} --</option>
+                        {availableStudents.map(st => (
+                            <option key={st.id_student} value={st.id_student}>
+                                {st.first_name} {st.last_name} (C.I: {st.dni})
                             </option>
                         ))}
                     </CFormSelect>
-                    {renderErrorText('id_student')}
-                </CCol>
+                    {errors.id_student && <div className="text-danger small">{errors.id_student}</div>}
+                    {formData.id_section && availableStudents.length === 0 && (
+                        <div className="text-warning small mt-1">Esta sección no tiene estudiantes inscritos.</div>
+                    )}
+                </div>
 
-                <CCol md={6}>
-                    {/* SELECT PARA SECCIONES */}
-                    <CFormSelect
-                        label="Sección *"
-                        name="id_section"
-                        value={formData.id_section}
-                        onChange={handleInputChange}
-                        onBlur={handleBlur}
-                        invalid={!!errors.id_section}
-                    >
-                         <option value="">Seleccionar Sección</option>
-                        {sectionsList.map(section => (
-                            <option key={section.id_section} value={section.id_section}>
-                                Sección {section.num_section}
-                            </option>
-                        ))}
+                <div className="mb-3">
+                    <CFormSelect label="Estado" name="status" value={formData.status} onChange={handleInputChange}>
+                        <option value="Presente">Presente</option>
+                        <option value="Ausente">Ausente</option>
+                        <option value="Retardo">Retardo</option>
+                        <option value="Justificado">Justificado</option>
                     </CFormSelect>
-                    {renderErrorText('id_section')}
-                </CCol>
-              </CRow>
+                </div>
 
-              <CRow className="mb-3">
-                <CCol md={6}>
-                    <CFormInput
-                        type="date"
-                        label="Fecha *"
-                        name="attendance_date"
-                        value={formData.attendance_date}
-                        onChange={handleInputChange}
-                        onBlur={handleBlur}
-                        invalid={!!errors.attendance_date}
-                    />
-                    {renderErrorText('attendance_date')}
-                </CCol>
-                <CCol md={6}>
-                    <CFormSelect
-                        label="Estado *"
-                        name="status"
-                        value={formData.status}
-                        onChange={handleInputChange}
-                        onBlur={handleBlur}
-                        invalid={!!errors.status}
-                    >
-                        <option value="">Seleccionar...</option>
-                        <option value="Present">Presente</option>
-                        <option value="Absent">Ausente</option>
-                        <option value="Late">Tardanza</option>
-                        <option value="Excused">Justificado</option>
-                    </CFormSelect>
-                    {renderErrorText('status')}
-                </CCol>
-              </CRow>
-
-              <div className="mb-3">
-                <CFormTextarea
-                    label="Observaciones"
-                    name="remarks"
-                    value={formData.remarks}
-                    onChange={handleInputChange}
-                    rows={3}
-                />
-              </div>
+                <div className="mb-3">
+                    <CFormTextarea label="Observación (Opcional)" name="remarks" value={formData.remarks} onChange={handleInputChange} rows={3} />
+                </div>
             </CForm>
-          </CModalBody>
-          <CModalFooter>
-            <CButton color="success" onClick={handleSaveAttendance} disabled={isSaving}>Guardar</CButton>
-            <CButton color="secondary" onClick={handleCloseModal} disabled={isSaving}>Cancelar</CButton>
-          </CModalFooter>
-        </CModal>
-      </CCardBody>
+        </CModalBody>
+        <CModalFooter>
+            <CButton color="secondary" onClick={handleCloseModal}>Cancelar</CButton>
+            <CButton color="primary" onClick={handleSave} disabled={isSaving}>Guardar</CButton>
+        </CModalFooter>
+      </CModal>
+
+      {/* MODAL BORRAR */}
+      <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} backdrop="static" alignment="center">
+        <CModalHeader><CModalTitle>Confirmar</CModalTitle></CModalHeader>
+        <CModalBody>¿Seguro que desea eliminar este registro?</CModalBody>
+        <CModalFooter>
+            <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>No</CButton>
+            <CButton color="danger" onClick={handleDelete}>Sí, Eliminar</CButton>
+        </CModalFooter>
+      </CModal>
     </CCard>
   );
 };
