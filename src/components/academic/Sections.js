@@ -19,7 +19,7 @@ const Sections = () => {
   const [editing, setEditing] = useState(false); // Modo Edición
   const [alert, setAlert] = useState(null); // Alertas de error/éxito
 
-  // Formulario: Nombres exactos que pide el Backend
+  // Formulario
   const [formData, setFormData] = useState({
     id_section: null,
     num_section: '',   // Nombre de la sección (A, B, U...)
