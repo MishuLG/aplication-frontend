@@ -36,8 +36,8 @@ import {
   cilCalendar
 } from '@coreui/icons';
 
-// --- CORRECCIÓN: URL DIRECTA PARA EVITAR ERROR DE IMPORTACIÓN ---
-const API_URL = 'http://localhost:4000/api';
+// --- CORRECCIÓN: USAR CONFIG GLOBAL ---
+import API_URL from '../../config';
 // ---------------------------------------------------------------
 
 const Sections = () => {
