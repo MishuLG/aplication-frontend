@@ -18,6 +18,10 @@ import navigation from '../_nav'
 // Importar CSS
 import '../css/header.css'
 
+// --- CORRECCIÓN: IMPORTAR LA IMAGEN ---
+import logoIcon from '../assets/images/icon.png'
+// -------------------------------------
+
 const AppSidebar = () => {
   const dispatch = useDispatch()
   const unfoldable = useSelector((state) => state.sidebarUnfoldable)
@@ -37,7 +41,7 @@ const AppSidebar = () => {
         <CSidebarBrand to="/" className="d-flex align-items-center justify-content-center w-100 text-decoration-none">
           {/* Logo */}
           <CImage 
-            src='src/assets/images/icon.png' 
+            src={logoIcon} 
             height={32} 
             className="d-inline-block align-middle"
           />
