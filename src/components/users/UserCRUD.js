@@ -45,7 +45,7 @@ const Users = () => {
     password: '',
     date_of_birth: '',
     gender: '',
-    status: 'active',
+    status: 'active', // Por defecto activo
   });
 
   // UI States
@@ -372,8 +372,8 @@ const Users = () => {
                         <CCol md={6}><CFormInput label="Teléfono *" name="number_tlf" value={formData.number_tlf} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.number_tlf}/></CCol>
                     </CRow>
                     <CRow className="mb-3">
-                        <CCol md={6}>
-                            {/* --- CORRECCIÓN AQUÍ: VALORES CORRECTOS --- */}
+                        {/* Se eliminó la selección de estado, se deja el Rol ocupando toda la fila */}
+                        <CCol md={12}>
                             <CFormSelect label="Rol *" name="id_rols" value={formData.id_rols} onChange={handleInputChange} onBlur={handleBlur} invalid={!!errors.id_rols}>
                                 <option value="">Seleccione...</option>
                                 <option value="1">Administrador</option>
@@ -381,7 +381,6 @@ const Users = () => {
                                 <option value="3">Estudiante</option>
                             </CFormSelect>
                         </CCol>
-                        <CCol md={6}><CFormSelect label="Estado *" name="status" value={formData.status} onChange={handleInputChange}><option value="active">Activo</option><option value="inactive">Inactivo</option></CFormSelect></CCol>
                     </CRow>
                     <CRow className="mb-3">
                         <CCol md={6}><CFormSelect label="Género *" name="gender" value={formData.gender} onChange={handleInputChange}><option value="">Seleccione...</option><option value="M">Masculino</option><option value="F">Femenino</option></CFormSelect></CCol>

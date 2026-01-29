@@ -17,9 +17,7 @@ import {
   CSpinner
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
-import { cilReload, cilTrash } from '@coreui/icons';
-// Ajusta la ruta según tu estructura real. 
-// Si config.js está en la raíz del proyecto y este archivo en src/components/classSchedules/, usa:
+import { cilReload, cilTrash, cilPencil, cilSave, cilBan, cilMove } from '@coreui/icons';
 import API_URL from "../../../config"; 
 
 const ClassSchedules = () => {
@@ -29,7 +27,12 @@ const ClassSchedules = () => {
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null);
 
-  // --- CONFIGURACIÓN DE LA MATRIZ DE HORARIO ---
+  // --- ESTADOS PARA EDICIÓN ---
+  const [isEditing, setIsEditing] = useState(false);
+  const [draggedItemId, setDraggedItemId] = useState(null); 
+  const [tempSchedule, setTempSchedule] = useState([]); 
+
+  // --- CONFIGURACIÓN DE BLOQUES ---
   const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
   
   const timeBlocks = [
@@ -42,6 +45,70 @@ const ClassSchedules = () => {
     { start: '11:15', end: '12:00', label: 'Bloque 6' },
   ];
 
+  // --- ESTILOS INYECTADOS (CSS EN JS) ---
+  const styles = `
+    @keyframes shake {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(1deg); }
+      75% { transform: rotate(-1deg); }
+      100% { transform: rotate(0deg); }
+    }
+    
+    @keyframes pulse-soft {
+      0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.5); }
+      70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+    }
+
+    .shake-animation {
+      animation: shake 0.3s infinite ease-in-out;
+    }
+
+    .btn-pulse {
+      animation: pulse-soft 2s infinite;
+    }
+
+    .edit-mode-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 1020;
+      transition: opacity 0.3s;
+    }
+
+    .focused-content {
+      position: relative;
+      z-index: 1030;
+      transition: all 0.3s;
+    }
+
+    .droppable-cell {
+      transition: all 0.2s;
+    }
+    
+    .droppable-cell.drag-over {
+      background-color: rgba(var(--cui-primary-rgb), 0.2) !important;
+      box-shadow: inset 0 0 0 2px var(--cui-primary) !important;
+    }
+
+    .drag-card {
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: grab;
+    }
+
+    .drag-card:active {
+      cursor: grabbing;
+      transform: scale(1.05);
+      z-index: 1040;
+    }
+    
+    .is-being-dragged {
+      opacity: 0.3 !important;
+      filter: grayscale(100%);
+    }
+  `;
+
   useEffect(() => {
     fetchSections();
   }, []);
@@ -51,6 +118,7 @@ const ClassSchedules = () => {
       fetchSchedules(selectedSection);
     } else {
       setSchedules([]);
+      setTempSchedule([]);
     }
   }, [selectedSection]);
 
@@ -70,10 +138,7 @@ const ClassSchedules = () => {
   const fetchSections = async () => {
     try {
       const res = await authenticatedFetch(`${API_URL}/sections`);
-      if (res.ok) {
-          const data = await res.json();
-          setSections(data);
-      }
+      if (res.ok) setSections(await res.json());
     } catch (error) { console.error(error); }
   };
 
@@ -84,31 +149,29 @@ const ClassSchedules = () => {
       if (res.ok) {
           const data = await res.json();
           setSchedules(data);
+          setTempSchedule(JSON.parse(JSON.stringify(data)));
       }
     } catch (error) { console.error(error); }
     setLoading(false);
   };
 
+  // --- ACCIONES PRINCIPALES ---
+
   const handleGenerate = async () => {
     if (!selectedSection) return;
-    if (!window.confirm("Se borrará el horario actual y se generará uno nuevo automáticamente. ¿Seguro?")) return;
+    if (!window.confirm("Se borrará el horario actual y se generará uno nuevo. ¿Seguro?")) return;
 
     setLoading(true);
     try {
-      const res = await authenticatedFetch(`${API_URL}/class-schedules/generate/${selectedSection}`, {
-        method: 'POST'
-      });
+      const res = await authenticatedFetch(`${API_URL}/class-schedules/generate/${selectedSection}`, { method: 'POST' });
       const data = await res.json();
-      
       if (res.ok) {
         setAlert({ color: 'success', message: data.message });
         fetchSchedules(selectedSection); 
       } else {
-        setAlert({ color: 'danger', message: data.message || 'Error al generar' });
+        setAlert({ color: 'danger', message: data.message || 'Error' });
       }
-    } catch (error) {
-        setAlert({ color: 'danger', message: 'Error de conexión' });
-    }
+    } catch (error) { setAlert({ color: 'danger', message: 'Error de conexión' }); }
     setLoading(false);
   };
 
@@ -120,133 +183,265 @@ const ClassSchedules = () => {
       } catch (e) {}
   };
 
-  // --- FUNCIONES AUXILIARES PARA LA MATRIZ ---
+  const handleSaveChanges = async () => {
+    if (!window.confirm("¿Guardar la nueva distribución del horario?")) return;
+    setLoading(true);
+    try {
+        const promises = tempSchedule.map(item => 
+            authenticatedFetch(`${API_URL}/class-schedules/${item.id_class_schedules}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    id_section: item.id_section,
+                    id_subject: item.id_subject,
+                    day_of_week: item.day_of_week,
+                    start_time: item.start_time,
+                    end_time: item.end_time
+                })
+            })
+        );
+        await Promise.all(promises);
+        setAlert({ color: 'success', message: '¡Horario actualizado exitosamente!' });
+        setIsEditing(false);
+        fetchSchedules(selectedSection); 
+    } catch (error) {
+        console.error(error);
+        setAlert({ color: 'danger', message: 'Error al guardar cambios.' });
+    }
+    setLoading(false);
+  };
+
+  // --- LÓGICA DE ARRASTRAR Y SOLTAR (CORREGIDA - SWAP SEGURO) ---
+
+  const handleDragStart = (e, itemId) => {
+    if (!isEditing) return;
+    setDraggedItemId(String(itemId)); // Convertir a string para comparar seguro
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragEnd = (e) => {
+    setDraggedItemId(null);
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  };
+
+  const handleDragOver = (e) => {
+    if (isEditing) {
+        e.preventDefault(); 
+        e.currentTarget.classList.add('drag-over');
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.currentTarget.classList.remove('drag-over');
+  };
+
+  const handleDrop = (e, targetDay, targetStart, targetEnd) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    
+    if (!isEditing || !draggedItemId) return;
+
+    // Normalizar horas (HH:mm)
+    const normTargetStart = targetStart.substring(0,5);
+    const normTargetEnd = targetEnd.substring(0,5);
+
+    // Clonar para manipular
+    let newSchedule = JSON.parse(JSON.stringify(tempSchedule));
+
+    // 1. Buscar el item ORIGEN (el que muevo)
+    // CORRECCIÓN CLAVE: Usamos 'id_class_schedules' (plural) que es como viene de tu BD
+    const sourceIndex = newSchedule.findIndex(s => String(s.id_class_schedules) === String(draggedItemId));
+    
+    if (sourceIndex === -1) {
+        console.error("No se encontró el item arrastrado");
+        return;
+    }
+
+    // 2. Buscar si hay un item DESTINO (alguien ocupando el lugar)
+    const targetIndex = newSchedule.findIndex(s => 
+      s.day_of_week === targetDay && 
+      s.start_time.substring(0,5) === normTargetStart
+    );
+
+    // Guardar coordenadas originales del Origen (para el swap)
+    const originalDay = newSchedule[sourceIndex].day_of_week;
+    const originalStart = newSchedule[sourceIndex].start_time;
+    const originalEnd = newSchedule[sourceIndex].end_time;
+
+    // --- APLICAR MOVIMIENTO ---
+
+    // A. Mover ORIGEN -> DESTINO
+    newSchedule[sourceIndex].day_of_week = targetDay;
+    newSchedule[sourceIndex].start_time = normTargetStart;
+    newSchedule[sourceIndex].end_time = normTargetEnd;
+
+    // B. Si había alguien en el destino -> Moverlo al ORIGEN (Swap)
+    if (targetIndex !== -1 && targetIndex !== sourceIndex) {
+        newSchedule[targetIndex].day_of_week = originalDay;
+        newSchedule[targetIndex].start_time = originalStart;
+        newSchedule[targetIndex].end_time = originalEnd;
+    }
+
+    setTempSchedule(newSchedule);
+    setDraggedItemId(null);
+  };
+
+  // --- HELPERS VISUALES ---
 
   const findClassInSlot = (day, startTime) => {
-      return schedules.find(s => 
+      const data = isEditing ? tempSchedule : schedules;
+      return data.find(s => 
           s.day_of_week === day && 
-          s.start_time.substring(0,5) === startTime
+          s.start_time.substring(0,5) === startTime.substring(0,5)
       );
   };
 
   const getSubjectColor = (subjectName) => {
       if (!subjectName) return 'secondary';
-      // Colores ajustados para que se vean bien tanto en claro como oscuro (evitamos light/dark puros)
-      const colors = ['primary', 'success', 'warning', 'info', 'danger'];
+      const colors = ['primary', 'success', 'warning', 'info', 'danger', 'dark'];
       let hash = 0;
-      for (let i = 0; i < subjectName.length; i++) {
-          hash = subjectName.charCodeAt(i) + ((hash << 5) - hash);
-      }
+      for (let i = 0; i < subjectName.length; i++) hash = subjectName.charCodeAt(i) + ((hash << 5) - hash);
       return colors[Math.abs(hash) % colors.length];
   };
 
   return (
     <CRow>
-      <CCol xs={12}>
-        <CCard className="mb-4 shadow-sm">
-          {/* ELIMINADO: 'bg-white' para que el Header tome el color del tema (oscuro o claro) */}
-          <CCardHeader className="py-3">
-            <strong className="fs-5">Gestión de Horarios Académicos</strong>
-          </CCardHeader>
-          <CCardBody>
-            {alert && <CAlert color={alert.color} dismissible onClose={() => setAlert(null)}>{alert.message}</CAlert>}
+      <style>{styles}</style>
+      
+      {isEditing && <div className="edit-mode-overlay" />} 
 
+      <CCol xs={12} className={isEditing ? 'focused-content' : ''}>
+        <CCard className="mb-4 shadow-sm border-0">
+          <CCardHeader className="py-3 d-flex justify-content-between align-items-center bg-body-tertiary">
+            <strong className="fs-5 text-body">Gestión de Horarios</strong>
+            
+            {selectedSection && schedules.length > 0 && (
+                <div>
+                    {!isEditing ? (
+                        <CButton color="info" variant="outline" className="fw-semibold" onClick={() => {setIsEditing(true); setTempSchedule(JSON.parse(JSON.stringify(schedules)));}}>
+                            <CIcon icon={cilPencil} className="me-2" /> Editar Distribución
+                        </CButton>
+                    ) : (
+                        <div className="d-flex gap-2">
+                            <CButton color="secondary" variant="ghost" onClick={() => { setIsEditing(false); setTempSchedule(schedules); setDraggedItemId(null); }}>
+                                <CIcon icon={cilBan} className="me-2" /> Cancelar
+                            </CButton>
+                            <CButton color="success" className="text-white btn-pulse fw-bold" onClick={handleSaveChanges} disabled={loading}>
+                                {loading ? <CSpinner size="sm"/> : <CIcon icon={cilSave} className="me-2" />}
+                                Guardar Cambios
+                            </CButton>
+                        </div>
+                    )}
+                </div>
+            )}
+          </CCardHeader>
+          <CCardBody className="bg-body">
+            {alert && <CAlert color={alert.color} dismissible onClose={() => setAlert(null)}>{alert.message}</CAlert>}
+            
+            {isEditing && (
+                <CAlert color="info" className="d-flex align-items-center border-info bg-info bg-opacity-10 text-body">
+                    <CIcon icon={cilMove} className="me-3" size="xl"/>
+                    <div>
+                        <strong>MODO EDICIÓN:</strong> Arrastre las materias. Si suelta una materia sobre otra, se intercambiarán de lugar (Swap).
+                    </div>
+                </CAlert>
+            )}
+
+            {/* SELECCIÓN DE SECCIÓN */}
             <CRow className="mb-4 align-items-end g-3">
               <CCol md={6}>
-                <label className="form-label text-medium-emphasis">Seleccione una Sección para ver su matriz:</label>
+                <label className="form-label text-body-secondary">Sección:</label>
                 <CFormSelect 
                   value={selectedSection} 
                   onChange={(e) => setSelectedSection(e.target.value)}
+                  disabled={isEditing}
+                  className="bg-body text-body border-secondary-subtle"
                 >
-                  <option value="">-- Seleccionar Sección --</option>
+                  <option value="">-- Seleccionar --</option>
                   {sections.map(s => (
                     <option key={s.id_section} value={s.id_section}>
-                      {s.Grade?.name_grade || 'Grado'} - Sección "{s.section_identifier}"
+                      {s.Grade?.name_grade} - "{s.section_identifier}"
                     </option>
                   ))}
                 </CFormSelect>
               </CCol>
               <CCol md={6} className="text-end">
-                {selectedSection && (
+                {selectedSection && !isEditing && (
                     <CButton color="primary" onClick={handleGenerate} disabled={loading}>
-                        {loading ? <CSpinner size="sm" component="span" aria-hidden="true"/> : <CIcon icon={cilReload} className="me-2" />}
-                        {loading ? ' Generando...' : ' Generar Horario Automático'}
+                        {loading ? '...' : <><CIcon icon={cilReload} className="me-2"/> Generar Automático</>}
                     </CButton>
                 )}
               </CCol>
             </CRow>
 
-            <hr className="mb-4 opacity-25"/> {/* Opacity ayuda a que la línea se vea bien en ambos modos */}
-
-            {/* MENSAJE SI NO HAY HORARIO */}
-            {selectedSection && schedules.length === 0 && !loading && (
-                <div className="text-center py-5 text-medium-emphasis border rounded border-dashed">
-                    <h4>No hay horario asignado.</h4>
-                    <p className="mb-0">Haga clic en "Generar Horario Automático" para crear uno basado en el pensum.</p>
-                </div>
-            )}
-
-            {/* MATRIZ DE HORARIO */}
+            {/* TABLA PRINCIPAL */}
             {selectedSection && schedules.length > 0 && (
-                <div className="table-responsive">
-                    <CTable bordered hover className="text-center align-middle caption-top">
-                        <caption className="pt-0 pb-2">
-                            <strong>Matriz de Horario Semanal</strong>
-                        </caption>
-                        {/* ELIMINADO: color="light" en el Head para evitar bloqueo de colores en modo oscuro */}
+                <div className="table-responsive rounded-3 border border-secondary-subtle">
+                    <CTable bordered hover className="text-center align-middle caption-top mb-0">
                         <CTableHead>
                             <CTableRow>
-                                <CTableHeaderCell className="fw-bold bg-body-tertiary" style={{width: '120px'}}>HORA / DÍA</CTableHeaderCell>
-                                {days.map(day => (
-                                    <CTableHeaderCell key={day} className="fw-bold text-uppercase text-primary bg-body-tertiary">
-                                        {day}
-                                    </CTableHeaderCell>
-                                ))}
+                                <CTableHeaderCell className="bg-body-tertiary text-body" style={{width:'100px'}}>HORA</CTableHeaderCell>
+                                {days.map(d => <CTableHeaderCell key={d} className="bg-body-tertiary text-primary text-uppercase">{d}</CTableHeaderCell>)}
                             </CTableRow>
                         </CTableHead>
                         <CTableBody>
-                            {timeBlocks.map((block, index) => (
-                                <CTableRow key={index}>
-                                    {/* Columna de Hora: Usamos bg-body-tertiary en vez de bg-light */}
-                                    <CTableHeaderCell className="small text-medium-emphasis bg-body-tertiary">
+                            {timeBlocks.map((block, idx) => (
+                                <CTableRow key={idx}>
+                                    <CTableHeaderCell className="small bg-body-tertiary text-body-secondary">
                                         <div className="fw-bold">{block.start}</div>
-                                        <div>a</div>
+                                        <div>-</div>
                                         <div className="fw-bold">{block.end}</div>
                                     </CTableHeaderCell>
 
-                                    {/* Lógica para Recreo vs Clases */}
                                     {block.isBreak ? (
-                                        <CTableDataCell colSpan={5} className="bg-secondary text-white fw-bold py-3" style={{letterSpacing: '2px'}}>
-                                            *** {block.label} ***
-                                        </CTableDataCell>
+                                        <CTableDataCell colSpan={5} className="bg-secondary bg-opacity-25 text-body fw-bold py-2">RECREO</CTableDataCell>
                                     ) : (
                                         days.map(day => {
                                             const session = findClassInSlot(day, block.start);
                                             const color = session ? getSubjectColor(session.Subject?.name_subject) : null;
                                             
+                                            // Estado visual del item (Corregido a Plural)
+                                            const isBeingDragged = isEditing && session && String(session.id_class_schedules) === String(draggedItemId);
+
                                             return (
-                                                <CTableDataCell key={day} className="p-1" style={{height: '1px'}}> {/* height 1px truco para que los hijos tomen el 100% */}
+                                                <CTableDataCell 
+                                                    key={`${day}-${block.start}`}
+                                                    className={`p-1 position-relative droppable-cell`}
+                                                    style={{
+                                                        height: '1px',
+                                                        border: isEditing ? '1px dashed var(--cui-border-color)' : '',
+                                                        backgroundColor: 'transparent'
+                                                    }}
+                                                    onDragOver={handleDragOver}
+                                                    onDragLeave={handleDragLeave}
+                                                    onDrop={(e) => handleDrop(e, day, block.start, block.end)}
+                                                >
                                                     {session ? (
-                                                        <div className={`d-flex flex-column justify-content-between p-2 rounded h-100 text-white bg-${color} shadow-sm`} style={{minHeight: '80px'}}>
-                                                            <div className="fw-bold mb-1" style={{fontSize: '0.9rem', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>
-                                                                {session.Subject?.name_subject || 'Desconocida'}
+                                                        <div 
+                                                            className={`drag-card d-flex flex-column justify-content-between p-2 rounded h-100 text-white bg-${color} shadow-sm ${isEditing ? 'shake-animation' : ''} ${isBeingDragged ? 'is-being-dragged' : ''}`}
+                                                            style={{
+                                                                minHeight: '80px',
+                                                                userSelect: 'none'
+                                                            }}
+                                                            draggable={isEditing}
+                                                            // CORRECCIÓN: Usamos id_class_schedules (plural)
+                                                            onDragStart={(e) => handleDragStart(e, session.id_class_schedules)}
+                                                            onDragEnd={handleDragEnd}
+                                                            title={isEditing ? "Arrastra para mover" : ""}
+                                                        >
+                                                            <div className="fw-bold" style={{fontSize: '0.85rem', textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>
+                                                                {session.Subject?.name_subject}
                                                             </div>
-                                                            <div className="text-end">
-                                                                <CButton 
-                                                                    size="sm" 
-                                                                    color="light" 
-                                                                    variant="ghost" 
-                                                                    className="text-white p-0"
-                                                                    title="Eliminar bloque"
-                                                                    onClick={() => handleDelete(session.id_class_schedules)}
-                                                                >
-                                                                    <CIcon icon={cilTrash} size="sm" style={{opacity: 0.8}} />
-                                                                </CButton>
-                                                            </div>
+                                                            {!isEditing && (
+                                                                <div className="text-end mt-1">
+                                                                    <CButton size="sm" color="transparent" className="text-white p-0 opacity-75" onClick={() => handleDelete(session.id_class_schedules)}>
+                                                                        <CIcon icon={cilTrash}/>
+                                                                    </CButton>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     ) : (
-                                                        <div className="d-flex align-items-center justify-content-center h-100 text-disabled small">
-                                                            -
+                                                        <div className="h-100 d-flex align-items-center justify-content-center text-body-tertiary small">
+                                                            {isEditing && <CIcon icon={cilMove} className="opacity-25"/>}
                                                         </div>
                                                     )}
                                                 </CTableDataCell>

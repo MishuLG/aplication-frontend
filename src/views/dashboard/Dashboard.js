@@ -6,11 +6,9 @@ import {
     CCard,
     CCardBody,
     CCardHeader,
-    CCarousel,
-    CCarouselItem,
-    CImage,
-    CCarouselCaption,
-    CProgress
+    CProgress,
+    CButtonGroup,
+    CButton
 } from '@coreui/react';
 import { CChart } from '@coreui/react-chartjs';
 import CIcon from '@coreui/icons-react';
@@ -20,91 +18,111 @@ import {
     cilCheckCircle, 
     cilTask, 
     cilArrowTop, 
-    cilArrowBottom 
+    cilArrowBottom
 } from '@coreui/icons';
 
 import API_URL from '../../../config'; 
 import '../../css/dashboard.css'; 
 
-// Helper para obtener token
 const getToken = () => localStorage.getItem('token');
-
-// Imágenes estáticas
-const imagen1 = '/img/73dd40dc057fbb426a0f758bcd442c96.jpg';
-const imagen2 = '/img/back-to-school-2629361.jpg';
 
 const Dashboard = () => {
     
-    // ESTADO ÚNICO PARA TODOS LOS DATOS
-    const [stats, setStats] = useState({
-        students: 0,
-        users: 0,
-        attendanceVal: "0%",
-        evaluations: 0
+    // --- ESTADOS DE DATOS ---
+    const [stats, setStats] = useState({ 
+        students: 0, 
+        studentGrowth: 0, 
+        users: 0, 
+        attendanceVal: "0%", 
+        evaluations: 0 
     });
 
-    const [chartData, setChartData] = useState({
-        labels: [],
-        datasets: []
-    });
+    const [rawChartData, setRawChartData] = useState({ daily: [], monthly: [] });
+    const [filter, setFilter] = useState('6M'); 
+    const [chartData, setChartData] = useState({ labels: [], datasets: [] });
+    const [attendanceChart, setAttendanceChart] = useState({ labels: [], data: [] });
 
-    const [attendanceChart, setAttendanceChart] = useState({
-        labels: [],
-        data: []
-    });
-
-    // CARGA DE DATOS REALES
+    // --- CARGA DE DATOS ---
     useEffect(() => {
-        const fetchDashboardData = async () => {
-            try {
-                const response = await fetch(`${API_URL}/dashboard`, {
-                    headers: { 'Authorization': `Bearer ${getToken()}` }
+        fetchDashboardData();
+    }, []);
+
+    const fetchDashboardData = async () => {
+        try {
+            const response = await fetch(`${API_URL}/dashboard`, {
+                headers: { 'Authorization': `Bearer ${getToken()}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                
+                // 1. KPIs
+                setStats({
+                    students: data.kpi.students,
+                    studentGrowth: parseFloat(data.kpi.studentGrowth || 0),
+                    users: data.kpi.users,
+                    attendanceVal: data.kpi.attendance,
+                    evaluations: data.kpi.evaluations
                 });
 
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    // 1. Actualizar KPIs
-                    setStats({
-                        students: data.kpi.students,
-                        users: data.kpi.users,
-                        attendanceVal: data.kpi.attendance,
-                        evaluations: data.kpi.evaluations
-                    });
+                // 2. Datos para gráficas
+                setRawChartData({
+                    daily: data.charts.registrationsDaily || [],
+                    monthly: data.charts.registrationsMonthly || []
+                });
 
-                    // 2. Gráfica de Barras (Registro de Estudiantes)
-                    const regData = data.charts.registrations || [];
-                    const labels = regData.map(item => item.month); 
-                    const values = regData.map(item => parseInt(item.count)); 
-
-                    setChartData({
-                        labels: labels.length > 0 ? labels : ['Sin datos'], 
-                        datasets: [{
-                            label: 'Nuevos Estudiantes',
-                            backgroundColor: 'rgba(79, 70, 229, 0.8)',
-                            borderRadius: 5,
-                            hoverBackgroundColor: '#4338ca',
-                            data: values.length > 0 ? values : [0], 
-                            barPercentage: 0.6 
-                        }],
-                    });
-
-                    // 3. Gráfica de Línea (Asistencia)
-                    const attData = data.charts.attendance || [];
-                    setAttendanceChart({
-                        labels: attData.length > 0 ? attData.map(i => i.day) : ['Lun', 'Mar', 'Mie', 'Jue', 'Vie'],
-                        data: attData.length > 0 ? attData.map(i => parseInt(i.value)) : [0, 0, 0, 0, 0]
-                    });
-                }
-            } catch (error) {
-                console.error("Error cargando dashboard:", error);
+                // 3. Gráfica de Asistencia
+                const attData = data.charts.attendance || [];
+                setAttendanceChart({
+                    labels: attData.length > 0 ? attData.map(i => {
+                        const d = new Date(i.day);
+                        d.setDate(d.getDate() + 1);
+                        return d.toLocaleDateString('es-ES', { weekday: 'short' });
+                    }) : ['Lun', 'Mar', 'Mie', 'Jue', 'Vie'],
+                    data: attData.length > 0 ? attData.map(i => parseInt(i.value)) : [0, 0, 0, 0, 0]
+                });
             }
-        };
+        } catch (error) {
+            console.error("Error cargando dashboard:", error);
+        }
+    };
 
-        fetchDashboardData();
-    }, []); 
+    // --- LÓGICA DE FILTROS DE GRÁFICA ---
+    useEffect(() => {
+        let labels = [], values = [], labelText = '';
 
-    // COMPONENTE TARJETA
+        if (filter === '1M') {
+            labelText = 'Estudiantes (Últimos 30 días)';
+            const data = rawChartData.daily; 
+            labels = data.map(d => d.date.slice(5)); 
+            values = data.map(d => parseInt(d.count));
+        } else if (filter === '6M') {
+            labelText = 'Estudiantes (Últimos 6 meses)';
+            const data = rawChartData.monthly.slice(-6); 
+            labels = data.map(d => d.month);
+            values = data.map(d => parseInt(d.count));
+        } else if (filter === '1Y') {
+            labelText = 'Estudiantes (Último año)';
+            const data = rawChartData.monthly.slice(-12); 
+            labels = data.map(d => d.month);
+            values = data.map(d => parseInt(d.count));
+        }
+
+        setChartData({
+            labels: labels.length > 0 ? labels : ['Sin datos'], 
+            datasets: [{
+                label: labelText,
+                backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                borderRadius: 5,
+                hoverBackgroundColor: '#4338ca',
+                data: values.length > 0 ? values : [0], 
+                barPercentage: 0.6 
+            }],
+        });
+
+    }, [filter, rawChartData]); 
+
+    // COMPONENTE TARJETA KPI
     const StatCard = ({ title, value, icon, gradient, percent, isIncrease }) => (
         <CCard className="minimal-card mb-4">
             <div className="stat-card-body">
@@ -113,7 +131,7 @@ const Dashboard = () => {
                     <div className="value">{value}</div>
                     <div className={`mt-2 small fw-bold ${isIncrease ? 'text-success' : 'text-danger'}`}>
                         <CIcon icon={isIncrease ? cilArrowTop : cilArrowBottom} size="sm" />
-                        <span className="ms-1">{percent}%</span>
+                        <span className="ms-1">{Math.abs(percent)}%</span>
                         <span className="text-muted fw-normal ms-1">vs mes pasado</span>
                     </div>
                 </div>
@@ -127,6 +145,7 @@ const Dashboard = () => {
     return (
         <CContainer fluid className="mt-4">
             
+            {/* --- KPIs --- */}
             <CRow>
                 <CCol sm={6} lg={3}>
                     <StatCard 
@@ -134,8 +153,8 @@ const Dashboard = () => {
                         value={stats.students} 
                         icon={cilPeople} 
                         gradient="bg-gradient-primary"
-                        percent="12.5" 
-                        isIncrease={true} 
+                        percent={stats.studentGrowth} 
+                        isIncrease={stats.studentGrowth >= 0} 
                     />
                 </CCol>
                 <CCol sm={6} lg={3}>
@@ -144,7 +163,7 @@ const Dashboard = () => {
                         value={stats.users} 
                         icon={cilUser} 
                         gradient="bg-gradient-info"
-                        percent="4.2" 
+                        percent={4.2} 
                         isIncrease={true} 
                     />
                 </CCol>
@@ -154,7 +173,7 @@ const Dashboard = () => {
                         value={stats.attendanceVal} 
                         icon={cilCheckCircle} 
                         gradient="bg-gradient-success"
-                        percent="1.8" 
+                        percent={1.8} 
                         isIncrease={true} 
                     />
                 </CCol>
@@ -164,7 +183,7 @@ const Dashboard = () => {
                         value={stats.evaluations} 
                         icon={cilTask} 
                         gradient="bg-gradient-warning"
-                        percent="2.5" 
+                        percent={2.5} 
                         isIncrease={false} 
                     />
                 </CCol>
@@ -176,7 +195,27 @@ const Dashboard = () => {
                     <CCard className="minimal-card h-100">
                         <CCardHeader className="minimal-header d-flex justify-content-between align-items-center">
                             <h5>Registro de Estudiantes</h5>
-                            <small className="text-muted">Últimos 6 meses</small>
+                            
+                            <CButtonGroup role="group" aria-label="Filtro de tiempo">
+                                <CButton 
+                                    color="primary" 
+                                    variant={filter === '1M' ? undefined : 'outline'} 
+                                    size="sm"
+                                    onClick={() => setFilter('1M')}
+                                >1 Mes</CButton>
+                                <CButton 
+                                    color="primary" 
+                                    variant={filter === '6M' ? undefined : 'outline'} 
+                                    size="sm"
+                                    onClick={() => setFilter('6M')}
+                                >6 Meses</CButton>
+                                <CButton 
+                                    color="primary" 
+                                    variant={filter === '1Y' ? undefined : 'outline'} 
+                                    size="sm"
+                                    onClick={() => setFilter('1Y')}
+                                >1 Año</CButton>
+                            </CButtonGroup>
                         </CCardHeader>
                         <CCardBody className="p-4">
                             <CChart 
@@ -188,10 +227,11 @@ const Dashboard = () => {
                                         x: { grid: { display: false } },
                                         y: { 
                                             grid: { borderDash: [5, 5], color: '#f3f4f6' },
-                                            ticks: { stepSize: 1 } // Pasos enteros
+                                            ticks: { stepSize: 1 } 
                                         } 
                                     },
-                                    maintainAspectRatio: false
+                                    maintainAspectRatio: false,
+                                    animation: { duration: 800 } 
                                 }}
                                 style={{ height: '300px' }} 
                             /> 
@@ -199,19 +239,19 @@ const Dashboard = () => {
                     </CCard>
                 </CCol>
 
-                {/* PANEL LATERAL */}
+                {/* PANEL LATERAL (SOLO GRÁFICA ASISTENCIA) */}
                 <CCol xs={12} lg={4} className="mb-4">
-                    <CCard className="minimal-card mb-4">
+                    <CCard className="minimal-card mb-4 h-100">
                         <CCardHeader className="minimal-header">
-                            <h5>Tendencia Asistencia</h5>
+                            <h5>Tendencia Asistencia (7 Días)</h5>
                         </CCardHeader>
-                        <CCardBody className="p-4">
+                        <CCardBody className="p-4 d-flex flex-column justify-content-between">
                             <CChart 
                                 type="line" 
                                 data={{
                                     labels: attendanceChart.labels,
                                     datasets: [{
-                                        label: 'Asistencia',
+                                        label: '% Asistencia',
                                         backgroundColor: 'rgba(16, 185, 129, 0.1)',
                                         borderColor: '#10b981',
                                         pointBackgroundColor: '#fff',
@@ -224,10 +264,15 @@ const Dashboard = () => {
                                 }}
                                 options={{
                                     plugins: { legend: { display: false } },
-                                    scales: { x: { display: false }, y: { display: false } },
-                                    layout: { padding: 10 }
+                                    scales: { 
+                                        x: { display: true, grid: { display: false } }, 
+                                        y: { display: false, min: 0, max: 100 } 
+                                    },
+                                    layout: { padding: 10 },
+                                    animation: { duration: 1000, easing: 'easeOutQuart' },
+                                    maintainAspectRatio: false
                                 }}
-                                style={{ height: '120px' }}
+                                style={{ height: '200px' }} // Aumenté un poco la altura para llenar el espacio
                             />
                              <div className="mt-4">
                                 <div className="d-flex justify-content-between mb-2 small fw-bold text-muted">
@@ -237,17 +282,6 @@ const Dashboard = () => {
                                 <CProgress thin color="success" value={96} style={{height: '6px', borderRadius: '10px'}} />
                             </div>
                         </CCardBody>
-                    </CCard>
-
-                    <CCard className="minimal-card border-0">
-                        <CCarousel controls indicators interval={5000} transition="crossfade">
-                            <CCarouselItem>
-                                <CImage className="d-block w-100 rounded-bottom-4" src={imagen1} alt="Slide 1" style={{height: '220px', objectFit: 'cover', borderRadius: '20px'}} />
-                            </CCarouselItem>
-                            <CCarouselItem>
-                                <CImage className="d-block w-100 rounded-bottom-4" src={imagen2} alt="Slide 2" style={{height: '220px', objectFit: 'cover', borderRadius: '20px'}} />
-                            </CCarouselItem>
-                        </CCarousel>
                     </CCard>
                 </CCol>
             </CRow>
