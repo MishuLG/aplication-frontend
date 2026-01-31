@@ -131,18 +131,23 @@ const Students = () => {
 
   return (
     <div className="container-fluid mt-4">
-      <CCard className="shadow-sm border-0">
+      {/* TARGET TUTORIAL: TABLA DE ESTUDIANTES */}
+      <CCard className="shadow-sm border-0 tour-student-table">
         <CCardHeader className="bg-transparent border-0 d-flex justify-content-between py-3">
             <h5 className="mb-0 text-body">Directorio Estudiantil</h5>
-            <CButton color="primary" onClick={() => { handleCloseModal(); setShowModal(true); }}><CIcon icon={cilPlus} className="me-2"/>Nuevo</CButton>
+            
+            {/* TARGET TUTORIAL: BOTÓN CREAR */}
+            <CButton className="tour-student-create" color="primary" onClick={() => { handleCloseModal(); setShowModal(true); }}><CIcon icon={cilPlus} className="me-2"/>Nuevo</CButton>
         </CCardHeader>
         <CCardBody>
-            <div className="mb-4" style={{maxWidth: '400px'}}>
+            {/* TARGET TUTORIAL: FILTROS */}
+            <div className="mb-4 tour-student-filters" style={{maxWidth: '400px'}}>
                 <CInputGroup>
                     <CInputGroupText className="bg-body border-end-0"><CIcon icon={cilSearch} /></CInputGroupText>
                     <CFormInput className="bg-body border-start-0" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </CInputGroup>
             </div>
+            
             <CTable hover responsive align="middle">
                 <CTableHead>
                     <CTableRow>
@@ -171,7 +176,8 @@ const Students = () => {
                             <CTableDataCell className="text-center">
                                 {renderStatusBadge(student)}
                             </CTableDataCell>
-                            <CTableDataCell className="text-end">
+                            {/* TARGET TUTORIAL: ACCIONES */}
+                            <CTableDataCell className="text-end tour-student-actions">
                                 <CButton color="info" size="sm" variant="ghost" className="me-2" onClick={() => handleEdit(student)}><CIcon icon={cilPencil}/></CButton>
                                 <CButton color="danger" size="sm" variant="ghost" onClick={() => handleDelete(student.id_student)}><CIcon icon={cilTrash}/></CButton>
                             </CTableDataCell>

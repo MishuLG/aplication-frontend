@@ -8,7 +8,8 @@ import {
     CCardHeader,
     CProgress,
     CButtonGroup,
-    CButton
+    CButton,
+    useColorModes
 } from '@coreui/react';
 import { CChart } from '@coreui/react-chartjs';
 import CIcon from '@coreui/icons-react';
@@ -28,21 +29,20 @@ const getToken = () => localStorage.getItem('token');
 
 const Dashboard = () => {
     
-    // --- ESTADOS DE DATOS ---
-    const [stats, setStats] = useState({ 
-        students: 0, 
-        studentGrowth: 0, 
-        users: 0, 
-        attendanceVal: "0%", 
-        evaluations: 0 
-    });
+    // Detección de tema para los colores internos de la GRÁFICA (Chart.js no usa CSS)
+    const { colorMode } = useColorModes('coreui-free-react-admin-template-theme');
+    const isDark = colorMode === 'dark' || (colorMode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
+    // Colores de la gráfica sincronizados con CoreUI
+    const chartGridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+    const chartTextColor = isDark ? '#b1b7c1' : '#768192';
+
+    const [stats, setStats] = useState({ students: 0, studentGrowth: 0, users: 0, attendanceVal: "0%", evaluations: 0 });
     const [rawChartData, setRawChartData] = useState({ daily: [], monthly: [] });
     const [filter, setFilter] = useState('6M'); 
     const [chartData, setChartData] = useState({ labels: [], datasets: [] });
     const [attendanceChart, setAttendanceChart] = useState({ labels: [], data: [] });
 
-    // --- CARGA DE DATOS ---
     useEffect(() => {
         fetchDashboardData();
     }, []);
@@ -52,11 +52,8 @@ const Dashboard = () => {
             const response = await fetch(`${API_URL}/dashboard`, {
                 headers: { 'Authorization': `Bearer ${getToken()}` }
             });
-
             if (response.ok) {
                 const data = await response.json();
-                
-                // 1. KPIs
                 setStats({
                     students: data.kpi.students,
                     studentGrowth: parseFloat(data.kpi.studentGrowth || 0),
@@ -64,14 +61,10 @@ const Dashboard = () => {
                     attendanceVal: data.kpi.attendance,
                     evaluations: data.kpi.evaluations
                 });
-
-                // 2. Datos para gráficas
                 setRawChartData({
                     daily: data.charts.registrationsDaily || [],
                     monthly: data.charts.registrationsMonthly || []
                 });
-
-                // 3. Gráfica de Asistencia
                 const attData = data.charts.attendance || [];
                 setAttendanceChart({
                     labels: attData.length > 0 ? attData.map(i => {
@@ -82,15 +75,11 @@ const Dashboard = () => {
                     data: attData.length > 0 ? attData.map(i => parseInt(i.value)) : [0, 0, 0, 0, 0]
                 });
             }
-        } catch (error) {
-            console.error("Error cargando dashboard:", error);
-        }
+        } catch (error) { console.error("Error dashboard:", error); }
     };
 
-    // --- LÓGICA DE FILTROS DE GRÁFICA ---
     useEffect(() => {
         let labels = [], values = [], labelText = '';
-
         if (filter === '1M') {
             labelText = 'Estudiantes (Últimos 30 días)';
             const data = rawChartData.daily; 
@@ -107,7 +96,6 @@ const Dashboard = () => {
             labels = data.map(d => d.month);
             values = data.map(d => parseInt(d.count));
         }
-
         setChartData({
             labels: labels.length > 0 ? labels : ['Sin datos'], 
             datasets: [{
@@ -119,15 +107,14 @@ const Dashboard = () => {
                 barPercentage: 0.6 
             }],
         });
-
     }, [filter, rawChartData]); 
 
-    // COMPONENTE TARJETA KPI
+    // Tarjeta KPI usando clases estándar
     const StatCard = ({ title, value, icon, gradient, percent, isIncrease }) => (
         <CCard className="minimal-card mb-4">
             <div className="stat-card-body">
                 <div className="stat-content">
-                    <h4>{title}</h4>
+                    <h4 className="text-medium-emphasis">{title}</h4>
                     <div className="value">{value}</div>
                     <div className={`mt-2 small fw-bold ${isIncrease ? 'text-success' : 'text-danger'}`}>
                         <CIcon icon={isIncrease ? cilArrowTop : cilArrowBottom} size="sm" />
@@ -144,148 +131,43 @@ const Dashboard = () => {
 
     return (
         <CContainer fluid className="mt-4">
-            
-            {/* --- KPIs --- */}
-            <CRow>
-                <CCol sm={6} lg={3}>
-                    <StatCard 
-                        title="Total Estudiantes" 
-                        value={stats.students} 
-                        icon={cilPeople} 
-                        gradient="bg-gradient-primary"
-                        percent={stats.studentGrowth} 
-                        isIncrease={stats.studentGrowth >= 0} 
-                    />
-                </CCol>
-                <CCol sm={6} lg={3}>
-                    <StatCard 
-                        title="Usuarios Activos" 
-                        value={stats.users} 
-                        icon={cilUser} 
-                        gradient="bg-gradient-info"
-                        percent={4.2} 
-                        isIncrease={true} 
-                    />
-                </CCol>
-                <CCol sm={6} lg={3}>
-                    <StatCard 
-                        title="Asistencia Global" 
-                        value={stats.attendanceVal} 
-                        icon={cilCheckCircle} 
-                        gradient="bg-gradient-success"
-                        percent={1.8} 
-                        isIncrease={true} 
-                    />
-                </CCol>
-                <CCol sm={6} lg={3}>
-                    <StatCard 
-                        title="Evaluaciones" 
-                        value={stats.evaluations} 
-                        icon={cilTask} 
-                        gradient="bg-gradient-warning"
-                        percent={2.5} 
-                        isIncrease={false} 
-                    />
-                </CCol>
+            <CRow className="tour-dashboard-kpi">
+                <CCol sm={6} lg={3}><StatCard title="Total Estudiantes" value={stats.students} icon={cilPeople} gradient="bg-gradient-primary" percent={stats.studentGrowth} isIncrease={stats.studentGrowth >= 0} /></CCol>
+                <CCol sm={6} lg={3}><StatCard title="Usuarios Activos" value={stats.users} icon={cilUser} gradient="bg-gradient-info" percent={4.2} isIncrease={true} /></CCol>
+                <CCol sm={6} lg={3}><StatCard title="Asistencia Global" value={stats.attendanceVal} icon={cilCheckCircle} gradient="bg-gradient-success" percent={1.8} isIncrease={true} /></CCol>
+                <CCol sm={6} lg={3}><StatCard title="Evaluaciones" value={stats.evaluations} icon={cilTask} gradient="bg-gradient-warning" percent={2.5} isIncrease={false} /></CCol>
             </CRow>
 
             <CRow>
-                {/* GRÁFICO DE BARRAS DINÁMICO */}
                 <CCol xs={12} lg={8} className="mb-4">
                     <CCard className="minimal-card h-100">
                         <CCardHeader className="minimal-header d-flex justify-content-between align-items-center">
-                            <h5>Registro de Estudiantes</h5>
-                            
-                            <CButtonGroup role="group" aria-label="Filtro de tiempo">
-                                <CButton 
-                                    color="primary" 
-                                    variant={filter === '1M' ? undefined : 'outline'} 
-                                    size="sm"
-                                    onClick={() => setFilter('1M')}
-                                >1 Mes</CButton>
-                                <CButton 
-                                    color="primary" 
-                                    variant={filter === '6M' ? undefined : 'outline'} 
-                                    size="sm"
-                                    onClick={() => setFilter('6M')}
-                                >6 Meses</CButton>
-                                <CButton 
-                                    color="primary" 
-                                    variant={filter === '1Y' ? undefined : 'outline'} 
-                                    size="sm"
-                                    onClick={() => setFilter('1Y')}
-                                >1 Año</CButton>
+                            <h5 className="mb-0">Registro de Estudiantes</h5>
+                            <CButtonGroup role="group">
+                                <CButton color="primary" variant={filter === '1M' ? undefined : 'outline'} size="sm" onClick={() => setFilter('1M')}>1 Mes</CButton>
+                                <CButton color="primary" variant={filter === '6M' ? undefined : 'outline'} size="sm" onClick={() => setFilter('6M')}>6 Meses</CButton>
+                                <CButton color="primary" variant={filter === '1Y' ? undefined : 'outline'} size="sm" onClick={() => setFilter('1Y')}>1 Año</CButton>
                             </CButtonGroup>
                         </CCardHeader>
                         <CCardBody className="p-4">
-                            <CChart 
-                                type="bar" 
-                                data={chartData} 
-                                options={{
-                                    plugins: { legend: { display: false } },
-                                    scales: {
-                                        x: { grid: { display: false } },
-                                        y: { 
-                                            grid: { borderDash: [5, 5], color: '#f3f4f6' },
-                                            ticks: { stepSize: 1 } 
-                                        } 
-                                    },
-                                    maintainAspectRatio: false,
-                                    animation: { duration: 800 } 
-                                }}
-                                style={{ height: '300px' }} 
-                            /> 
+                            <CChart type="bar" data={chartData} options={{ plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: chartTextColor } }, y: { grid: { borderDash: [5, 5], color: chartGridColor }, ticks: { stepSize: 1, color: chartTextColor } } }, maintainAspectRatio: false, animation: { duration: 800 } }} style={{ height: '300px' }} /> 
                         </CCardBody>
                     </CCard>
                 </CCol>
 
-                {/* PANEL LATERAL (SOLO GRÁFICA ASISTENCIA) */}
                 <CCol xs={12} lg={4} className="mb-4">
                     <CCard className="minimal-card mb-4 h-100">
-                        <CCardHeader className="minimal-header">
-                            <h5>Tendencia Asistencia (7 Días)</h5>
-                        </CCardHeader>
+                        <CCardHeader className="minimal-header"><h5>Tendencia Asistencia</h5></CCardHeader>
                         <CCardBody className="p-4 d-flex flex-column justify-content-between">
-                            <CChart 
-                                type="line" 
-                                data={{
-                                    labels: attendanceChart.labels,
-                                    datasets: [{
-                                        label: '% Asistencia',
-                                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                        borderColor: '#10b981',
-                                        pointBackgroundColor: '#fff',
-                                        pointBorderColor: '#10b981',
-                                        pointRadius: 4,
-                                        data: attendanceChart.data,
-                                        fill: true,
-                                        tension: 0.4
-                                    }]
-                                }}
-                                options={{
-                                    plugins: { legend: { display: false } },
-                                    scales: { 
-                                        x: { display: true, grid: { display: false } }, 
-                                        y: { display: false, min: 0, max: 100 } 
-                                    },
-                                    layout: { padding: 10 },
-                                    animation: { duration: 1000, easing: 'easeOutQuart' },
-                                    maintainAspectRatio: false
-                                }}
-                                style={{ height: '200px' }} // Aumenté un poco la altura para llenar el espacio
-                            />
+                            <CChart type="line" data={{ labels: attendanceChart.labels, datasets: [{ label: '% Asistencia', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: '#10b981', pointBackgroundColor: isDark ? '#2a2e39' : '#fff', pointBorderColor: '#10b981', pointRadius: 4, data: attendanceChart.data, fill: true, tension: 0.4 }] }} options={{ plugins: { legend: { display: false } }, scales: { x: { display: true, grid: { display: false }, ticks: { color: chartTextColor } }, y: { display: false, min: 0, max: 100 } }, layout: { padding: 10 }, animation: { duration: 1000, easing: 'easeOutQuart' }, maintainAspectRatio: false }} style={{ height: '200px' }} />
                              <div className="mt-4">
-                                <div className="d-flex justify-content-between mb-2 small fw-bold text-muted">
-                                    <span>Meta Semanal</span>
-                                    <span>100%</span>
-                                </div>
+                                <div className="d-flex justify-content-between mb-2 small fw-bold text-medium-emphasis"><span>Meta Semanal</span><span>100%</span></div>
                                 <CProgress thin color="success" value={96} style={{height: '6px', borderRadius: '10px'}} />
                             </div>
                         </CCardBody>
                     </CCard>
                 </CCol>
             </CRow>
-            
         </CContainer>
     );
 };

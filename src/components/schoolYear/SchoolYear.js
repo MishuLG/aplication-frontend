@@ -33,7 +33,6 @@ import {
   cilSearch, 
   cilCalendar, 
   cilCheckCircle, 
-  cilBan,
   cilMediaPlay,
   cilWarning
 } from '@coreui/icons';
@@ -256,9 +255,9 @@ const SchoolYear = () => {
   return (
     <div className="container-fluid mt-4">
       
-      {/* PANEL DE CIERRE DE AÑO (ADAPTADO) */}
+      {/* PANEL DE CIERRE DE AÑO (CON CLASE PARA EL TUTORIAL: tour-schoolyear-active) */}
       {activeYear && (
-          <CAlert color="info" className="d-flex align-items-center justify-content-between shadow-sm">
+          <CAlert color="info" className="d-flex align-items-center justify-content-between shadow-sm tour-schoolyear-active">
               <div>
                   <CIcon icon={cilCheckCircle} className="me-2" size="xl"/>
                   <span className="fs-5 align-middle text-body">
@@ -266,18 +265,18 @@ const SchoolYear = () => {
                       <span className="small ms-2 opacity-75">({activeYear.start_year} - {activeYear.end_of_year})</span>
                   </span>
               </div>
-              <CButton color="warning" className="text-dark fw-bold" onClick={handlePromotionClick}>
+              <CButton color="warning" className="text-dark fw-bold tour-schoolyear-close" onClick={handlePromotionClick}>
                   <CIcon icon={cilMediaPlay} className="me-2" />
                   Cerrar Año e Iniciar Siguiente
               </CButton>
           </CAlert>
       )}
 
-      {/* TABLA PRINCIPAL (ADAPTADA) */}
-      <CCard className="shadow-sm">
+      {/* TABLA PRINCIPAL (CON CLASE PARA EL TUTORIAL: tour-schoolyear-table) */}
+      <CCard className="shadow-sm tour-schoolyear-table">
         <CCardHeader className="d-flex justify-content-between align-items-center py-3">
             <h5 className="mb-0">Historial de Periodos Escolares</h5>
-            <CButton color="success" onClick={() => { handleCloseModal(); setShowModal(true); }} className="text-white">
+            <CButton color="success" onClick={() => { handleCloseModal(); setShowModal(true); }} className="text-white tour-schoolyear-create">
               <CIcon icon={cilPlus} className="me-2" /> Nuevo Periodo
             </CButton>
         </CCardHeader>
@@ -285,7 +284,7 @@ const SchoolYear = () => {
         <CCardBody>
             {alertBox && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
 
-            <div className="mb-4" style={{ maxWidth: '400px' }}>
+            <div className="mb-4 tour-schoolyear-search" style={{ maxWidth: '400px' }}>
                 <CInputGroup>
                     <CInputGroupText><CIcon icon={cilSearch} /></CInputGroupText>
                     <CFormInput 

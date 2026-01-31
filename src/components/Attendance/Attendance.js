@@ -209,13 +209,15 @@ const Attendance = () => {
     <CCard className="shadow-sm border-0">
       <CCardHeader className="bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
         <h5 className="mb-0 text-body"><CIcon icon={cilCheckCircle} className="me-2"/>Control de Asistencia</h5>
-        <CButton color="primary" onClick={() => { handleCloseModal(); setShowModal(true); }}>
+        {/* TARGET TUTORIAL: BOTÓN REGISTRAR (SAVE/CREATE) */}
+        <CButton color="primary" onClick={() => { handleCloseModal(); setShowModal(true); }} className="tour-attendance-save">
           Registrar Asistencia
         </CButton>
       </CCardHeader>
       
       <CCardBody>
-        <div className="d-flex gap-3 mb-4">
+        {/* TARGET TUTORIAL: FILTROS */}
+        <div className="d-flex gap-3 mb-4 tour-attendance-filters">
             <CFormInput 
                 placeholder="Buscar estudiante..." 
                 value={filter.studentName}
@@ -230,55 +232,58 @@ const Attendance = () => {
             />
         </div>
 
-        <CTable hover responsive align="middle">
-          <CTableHead>
-            <CTableRow>
-              <CTableHeaderCell>Fecha</CTableHeaderCell>
-              <CTableHeaderCell>Estudiante</CTableHeaderCell>
-              <CTableHeaderCell>Sección</CTableHeaderCell>
-              <CTableHeaderCell>Estado</CTableHeaderCell>
-              <CTableHeaderCell>Observación</CTableHeaderCell>
-              <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
-            </CTableRow>
-          </CTableHead>
-          <CTableBody>
-            {filteredRecords.map((item, idx) => (
-              <CTableRow key={idx}>
-                <CTableDataCell className="text-body-secondary small">{item.attendance_date}</CTableDataCell>
-                <CTableDataCell>
-                    {item.Student ? (
-                        <span className="fw-semibold">{item.Student.first_name} {item.Student.last_name}</span>
-                    ) : <span className="text-danger small">Estudiante eliminado</span>}
-                </CTableDataCell>
-                <CTableDataCell>
-                    {item.Section ? (
-                        <CBadge color="light" textColor="dark" className="border">
-                            {item.Section.Grade?.name_grade} "{item.Section.num_section}"
+        {/* TARGET TUTORIAL: LISTA */}
+        <div className="tour-attendance-list">
+            <CTable hover responsive align="middle">
+            <CTableHead>
+                <CTableRow>
+                <CTableHeaderCell>Fecha</CTableHeaderCell>
+                <CTableHeaderCell>Estudiante</CTableHeaderCell>
+                <CTableHeaderCell>Sección</CTableHeaderCell>
+                <CTableHeaderCell>Estado</CTableHeaderCell>
+                <CTableHeaderCell>Observación</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
+                </CTableRow>
+            </CTableHead>
+            <CTableBody>
+                {filteredRecords.map((item, idx) => (
+                <CTableRow key={idx}>
+                    <CTableDataCell className="text-body-secondary small">{item.attendance_date}</CTableDataCell>
+                    <CTableDataCell>
+                        {item.Student ? (
+                            <span className="fw-semibold">{item.Student.first_name} {item.Student.last_name}</span>
+                        ) : <span className="text-danger small">Estudiante eliminado</span>}
+                    </CTableDataCell>
+                    <CTableDataCell>
+                        {item.Section ? (
+                            <CBadge color="light" textColor="dark" className="border">
+                                {item.Section.Grade?.name_grade} "{item.Section.num_section}"
+                            </CBadge>
+                        ) : '-'}
+                    </CTableDataCell>
+                    <CTableDataCell>
+                        <CBadge color={
+                            item.status === 'Presente' ? 'success' : 
+                            item.status === 'Ausente' ? 'danger' : 'warning'
+                        }>
+                            {item.status}
                         </CBadge>
-                    ) : '-'}
-                </CTableDataCell>
-                <CTableDataCell>
-                    <CBadge color={
-                        item.status === 'Presente' ? 'success' : 
-                        item.status === 'Ausente' ? 'danger' : 'warning'
-                    }>
-                        {item.status}
-                    </CBadge>
-                </CTableDataCell>
-                <CTableDataCell className="small text-body-secondary text-truncate" style={{maxWidth: '200px'}}>
-                    {item.observations || '-'}
-                </CTableDataCell>
-                <CTableDataCell className="text-end">
-                    <CButton size="sm" color="warning" variant="ghost" onClick={() => handleEdit(item)} className="me-2"><CIcon icon={cilPencil}/></CButton>
-                    <CButton size="sm" color="danger" variant="ghost" onClick={() => { setIdToDelete(item); setShowDeleteModal(true); }}><CIcon icon={cilTrash}/></CButton>
-                </CTableDataCell>
-              </CTableRow>
-            ))}
-            {filteredRecords.length === 0 && (
-                <CTableRow><CTableDataCell colSpan="6" className="text-center text-body-secondary py-4">No hay registros de asistencia.</CTableDataCell></CTableRow>
-            )}
-          </CTableBody>
-        </CTable>
+                    </CTableDataCell>
+                    <CTableDataCell className="small text-body-secondary text-truncate" style={{maxWidth: '200px'}}>
+                        {item.observations || '-'}
+                    </CTableDataCell>
+                    <CTableDataCell className="text-end">
+                        <CButton size="sm" color="warning" variant="ghost" onClick={() => handleEdit(item)} className="me-2"><CIcon icon={cilPencil}/></CButton>
+                        <CButton size="sm" color="danger" variant="ghost" onClick={() => { setIdToDelete(item); setShowDeleteModal(true); }}><CIcon icon={cilTrash}/></CButton>
+                    </CTableDataCell>
+                </CTableRow>
+                ))}
+                {filteredRecords.length === 0 && (
+                    <CTableRow><CTableDataCell colSpan="6" className="text-center text-body-secondary py-4">No hay registros de asistencia.</CTableDataCell></CTableRow>
+                )}
+            </CTableBody>
+            </CTable>
+        </div>
       </CCardBody>
 
       {/* MODAL */}

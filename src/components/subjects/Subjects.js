@@ -203,12 +203,14 @@ const Subjects = () => {
           </CCol>
       </CRow>
 
-      <CCard className="shadow-sm border-0">
+      {/* TARGET TUTORIAL: TABLA DE MATERIAS */}
+      <CCard className="shadow-sm border-0 tour-subjects-table">
         <CCardHeader className="py-3 d-flex justify-content-between align-items-center bg-transparent border-bottom-0">
             <h5 className="mb-0 text-body d-flex align-items-center">
                <CIcon icon={cilList} className="me-2 text-primary" /> Catálogo de Asignaturas
             </h5>
-            <CButton color="primary" onClick={() => { handleCloseModal(); setShowModal(true); }} className="d-flex align-items-center shadow-sm">
+            {/* TARGET TUTORIAL: BOTÓN CREAR */}
+            <CButton color="primary" onClick={() => { handleCloseModal(); setShowModal(true); }} className="d-flex align-items-center shadow-sm tour-subjects-create">
               <CIcon icon={cilPlus} className="me-2" /> Nueva Asignatura
             </CButton>
         </CCardHeader>
@@ -218,7 +220,8 @@ const Subjects = () => {
 
             <CRow className="mb-4">
                 <CCol md={6}>
-                    <CInputGroup className="shadow-sm">
+                    {/* TARGET TUTORIAL: BÚSQUEDA */}
+                    <CInputGroup className="shadow-sm tour-subjects-search">
                         <CInputGroupText className="bg-body border-end-0 text-medium-emphasis">
                             <CIcon icon={cilSearch} />
                         </CInputGroupText>

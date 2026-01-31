@@ -1,94 +1,80 @@
-/* src/css/dashboard.css */
+/* =========================================
+   ESTILOS DASHBOARD - INTEGRACIÓN NATIVA
+   ========================================= */
 
-:root {
-  --card-bg: #ffffff;
-  --main-bg: #f3f4f6; /* Gris muy claro para el fondo general */
-  --text-dark: #1f2937;
-  --text-muted: #6b7280;
-  --primary-accent: #4f46e5; /* Índigo moderno */
-  --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --radius-lg: 20px; /* Bordes muy redondeados */
-}
-
-/* Fondo general del dashboard (opcional, si quieres forzarlo) */
-.dashboard-wrapper {
-  background-color: var(--main-bg);
-  min-height: 100%;
-}
-
-/* --- TARJETAS MINIMALISTAS --- */
 .minimal-card {
-  background-color: var(--card-bg);
-  border: none !important; /* Quita los bordes de CoreUI */
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-soft);
-  transition: all 0.3s ease;
-  overflow: hidden; /* Para que la imagen del carrusel respete el borde */
+    /* USAMOS VARIABLES DE COREUI
+       Esto permite que el color cambie automáticamente entre Light/Dark 
+       sin necesidad de selectores manuales.
+    */
+    background-color: var(--cui-card-bg);
+    color: var(--cui-body-color);
+    border: 1px solid var(--cui-border-color);
+    
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .minimal-card:hover {
-  transform: translateY(-5px); /* Efecto de elevación */
-  box-shadow: var(--shadow-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
-/* --- TARJETAS DE ESTADÍSTICAS (KPIs) --- */
 .stat-card-body {
-  padding: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.stat-icon-wrapper {
-  width: 60px;
-  height: 60px;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 1.5rem;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.15); /* Sombra suave al icono */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
 }
 
 .stat-content h4 {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-  font-weight: 600;
-  margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0;
+    text-transform: uppercase;
+    /* Color secundario nativo (se ajusta solo) */
+    color: var(--cui-secondary-color, #8a93a2); 
 }
 
 .stat-content .value {
-  font-size: 2rem;
-  font-weight: 800; /* Extra bold */
-  color: var(--text-dark);
-  line-height: 1;
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-top: 0.5rem;
+    /* Color de texto principal nativo */
+    color: var(--cui-body-color); 
 }
 
-/* Colores personalizados para los iconos */
-.bg-gradient-primary { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
-.bg-gradient-info { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
-.bg-gradient-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-.bg-gradient-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+.stat-icon-wrapper {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white; /* El icono siempre es blanco sobre el gradiente */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
 
-/* --- GRÁFICOS Y CABECERAS --- */
 .minimal-header {
-  background: transparent;
-  border-bottom: 1px solid rgba(0,0,0,0.05) !important;
-  padding: 1.5rem 1.5rem 1rem;
+    background-color: transparent;
+    border-bottom: 1px solid var(--cui-border-color);
+    padding: 1.5rem 1.5rem 0.5rem 1.5rem;
 }
 
 .minimal-header h5 {
-  font-weight: 700;
-  color: var(--text-dark);
-  margin: 0;
+    color: var(--cui-body-color);
+    font-weight: 600;
+    margin: 0;
 }
 
-/* Carrusel más elegante */
-.minimal-carousel img {
-  border-radius: var(--radius-lg);
-  box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+/* GRADIENTES (Estos no cambian con el tema, siempre brillantes) */
+.bg-gradient-primary { background: linear-gradient(135deg, #4f46e5, #4338ca); }
+.bg-gradient-info { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+.bg-gradient-success { background: linear-gradient(135deg, #10b981, #059669); }
+.bg-gradient-warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+/* AJUSTES ADICIONALES PARA MODO OSCURO (Solo sombras) */
+[data-coreui-theme="dark"] .minimal-card {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* Sombra más fuerte en dark mode */
 }

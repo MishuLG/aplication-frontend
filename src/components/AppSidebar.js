@@ -29,7 +29,8 @@ const AppSidebar = () => {
 
   return (
     <CSidebar
-      className="modern-sidebar border-0"
+      // AJUSTE: Agregamos 'tour-sidebar' para que el tutorial lo detecte
+      className="modern-sidebar border-0 tour-sidebar"
       position="fixed"
       unfoldable={unfoldable}
       visible={sidebarShow}

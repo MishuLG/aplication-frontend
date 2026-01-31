@@ -294,8 +294,8 @@ const Sections = () => {
   return (
     <div className="container-fluid mt-4">
       
-      {/* --- KPIs (TU DISEÑO ORIGINAL) --- */}
-      <CRow className="mb-4">
+      {/* --- KPIs (TARGET TUTORIAL) --- */}
+      <CRow className="mb-4 tour-sections-kpi">
           <CCol sm={6}>
               <CCard className="border-start-4 border-start-primary shadow-sm h-100">
                   <CCardBody className="d-flex justify-content-between align-items-center p-3">
@@ -320,11 +320,12 @@ const Sections = () => {
           </CCol>
       </CRow>
 
-      {/* --- CARD PRINCIPAL --- */}
-      <CCard className="shadow-sm border-0">
+      {/* --- CARD PRINCIPAL (TARGET TUTORIAL) --- */}
+      <CCard className="shadow-sm border-0 tour-sections-table">
         <CCardHeader className="bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
             <h5 className="mb-0 text-body">Gestión de Secciones</h5>
-            <CButton color="success" onClick={() => { handleCloseModal(); setShowModal(true); }} className="d-flex align-items-center text-white">
+            {/* TARGET TUTORIAL: CREAR */}
+            <CButton color="success" onClick={() => { handleCloseModal(); setShowModal(true); }} className="d-flex align-items-center text-white tour-sections-create">
               <CIcon icon={cilPlus} className="me-2" /> Agregar Sección
             </CButton>
         </CCardHeader>
@@ -332,8 +333,8 @@ const Sections = () => {
         <CCardBody>
             {alertBox && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
 
-            {/* Filtros */}
-            <CRow className="mb-4 g-2">
+            {/* Filtros (TARGET TUTORIAL) */}
+            <CRow className="mb-4 g-2 tour-sections-search">
                 <CCol md={6}>
                     <CInputGroup>
                         <CInputGroupText className="bg-transparent text-medium-emphasis border-end-0">

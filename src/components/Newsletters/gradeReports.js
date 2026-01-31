@@ -26,8 +26,8 @@ import {
   CNavLink,
   CTabContent,
   CTabPane,
-  CRow, // <--- AGREGADO
-  CCol  // <--- AGREGADO
+  CRow, 
+  CCol 
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
 import { cilPencil, cilTrash, cilPlus, cilDescription, cilCloudDownload, cilNotes } from '@coreui/icons';
@@ -63,8 +63,6 @@ const GradeReports = () => {
   const tutorsUrl = `${API_URL}/tutors`; 
   const enrollmentsUrl = `${API_URL}/enrollments`; 
   
-  // RUTA CORRECTA: Sin '/bulletin' extra
-  // Esto generará: http://localhost:4000/api/bulletins/1
   const bulletinUrl = `${API_URL}/bulletins`;
 
   // Helper de Autenticación
@@ -104,7 +102,6 @@ const GradeReports = () => {
   const handleDownloadBulletin = async (id_enrollment) => {
       try {
           const token = localStorage.getItem('token');
-          // Usamos la URL corregida
           const response = await fetch(`${bulletinUrl}/${id_enrollment}`, {
               method: 'GET',
               headers: { 'Authorization': `Bearer ${token}` }
@@ -129,7 +126,6 @@ const GradeReports = () => {
   const handleSaveNewsletter = async () => {
     setErrorMessage(null);
     
-    // Validaciones
     if (!formData.uid_users) return setErrorMessage('Seleccione un Tutor.');
     if (!formData.title.trim()) return setErrorMessage('El título es obligatorio.');
     if (!formData.content.trim()) return setErrorMessage('El contenido es obligatorio.');
@@ -208,15 +204,22 @@ const GradeReports = () => {
       </CCardHeader>
       
       <CCardBody>
-        <CNav variant="tabs" className="mb-4 border-bottom-0" style={{cursor:'pointer'}}>
+        {/* TARGET TUTORIAL 1: TABS */}
+        <CNav variant="tabs" className="mb-4 border-bottom-0 tour-reports-tabs" style={{cursor:'pointer'}}>
             <CNavItem>
                 <CNavLink active={activeTab === 1} onClick={() => setActiveTab(1)}>
-                    <CIcon icon={cilDescription} className="me-2"/> Comunicados
+                    {/* TARGET TUTORIAL 2: NEWSLETTERS TAB */}
+                    <span className="tour-reports-newsletters">
+                        <CIcon icon={cilDescription} className="me-2"/> Comunicados
+                    </span>
                 </CNavLink>
             </CNavItem>
             <CNavItem>
                 <CNavLink active={activeTab === 2} onClick={() => setActiveTab(2)}>
-                    <CIcon icon={cilNotes} className="me-2"/> Boletines de Notas
+                    {/* TARGET TUTORIAL 3: BOLETINES TAB (Aquí estaba el fallo, ahora apunta al botón) */}
+                    <span className="tour-reports-bulletins">
+                        <CIcon icon={cilNotes} className="me-2"/> Boletines de Notas
+                    </span>
                 </CNavLink>
             </CNavItem>
         </CNav>
@@ -310,7 +313,6 @@ const GradeReports = () => {
                                     ) : <span className="text-danger small">Sin Sección</span>}
                                 </CTableDataCell>
                                 <CTableDataCell className="fw-bold">
-                                    {/* Muestra promedio con 2 decimales */}
                                     {enrollment.final_average ? Number(enrollment.final_average).toFixed(2) : '0.00'}
                                 </CTableDataCell>
                                 <CTableDataCell>

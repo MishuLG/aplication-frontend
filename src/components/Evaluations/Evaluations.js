@@ -22,8 +22,8 @@ const Evaluations = () => {
   const [filteredSchedules, setFilteredSchedules] = useState([]);
 
   // Estado del Formulario
-  const [selectedSectionId, setSelectedSectionId] = useState(''); // Filtro Maestro
-  const [requiredDay, setRequiredDay] = useState(''); // Para mostrar el día obligatorio
+  const [selectedSectionId, setSelectedSectionId] = useState(''); 
+  const [requiredDay, setRequiredDay] = useState(''); 
   
   const [formData, setFormData] = useState({
     id_student: '',
@@ -116,14 +116,13 @@ const Evaluations = () => {
       const scheduleObj = allSchedules.find(s => String(s.id_class_schedules) === String(scheduleId));
 
       if (scheduleObj) {
-          setRequiredDay(scheduleObj.day_of_week); // Guardamos el día permitido (Ej: Lunes)
+          setRequiredDay(scheduleObj.day_of_week); 
           setFormData(prev => ({
               ...prev,
               id_class_schedules: scheduleId,
               id_subject: scheduleObj.id_subject 
           }));
 
-          // Si ya había fecha, la re-validamos
           if (formData.evaluation_date) {
               validateDayOfWeek(formData.evaluation_date, scheduleObj.day_of_week);
           }
@@ -137,7 +136,6 @@ const Evaluations = () => {
       const date = e.target.value;
       setFormData(prev => ({ ...prev, evaluation_date: date }));
       
-      // Validar contra el horario seleccionado
       if (formData.id_class_schedules) {
           const scheduleObj = allSchedules.find(s => String(s.id_class_schedules) === String(formData.id_class_schedules));
           if (scheduleObj) {
@@ -242,7 +240,6 @@ const Evaluations = () => {
         setFilteredStudents(allStudents.filter(s => String(s.id_section) === String(sectionId)));
         setFilteredSchedules(allSchedules.filter(s => String(s.id_section) === String(sectionId)));
         
-        // Buscar el horario para setear el día requerido en edición
         const schedule = allSchedules.find(s => s.id_class_schedules === ev.id_class_schedules);
         if(schedule) setRequiredDay(schedule.day_of_week);
     }
@@ -264,53 +261,68 @@ const Evaluations = () => {
 
   return (
     <CCard className="shadow-sm border-0">
-      <CCardHeader className="bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
+      {/* CORRECCIÓN TUTORIAL: 
+          Hemos movido las clases .tour-evaluations-filters y .tour-evaluations-save 
+          al Header y a un contenedor seguro. Ahora Joyride encontrará estos elementos 
+          siempre, evitando el error "step missing".
+      */}
+      <CCardHeader className="bg-transparent border-0 d-flex justify-content-between align-items-center py-3 tour-evaluations-filters">
             <h5 className="mb-0 text-body">Gestión de Evaluaciones y Notas</h5>
-            <CButton color="primary" onClick={() => setShowModal(true)}>Registrar Nota</CButton>
+            
+            <div className="d-flex align-items-center gap-2">
+                {/* TARGET TUTORIAL 4: SAVE (Elemento invisible de soporte para que el paso no falle) */}
+                <div className="tour-evaluations-save" style={{width: 1, height: 1}}></div>
+
+                {/* TARGET TUTORIAL 2: CONFIG/CREATE */}
+                <CButton color="primary" onClick={() => setShowModal(true)} className="tour-evaluations-config">Registrar Nota</CButton>
+            </div>
       </CCardHeader>
       
       <CCardBody>
         {alertBox && !showModal && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
         
-        <CTable hover responsive align="middle">
-          <CTableHead>
-            <CTableRow>
-              <CTableHeaderCell>Estudiante</CTableHeaderCell>
-              <CTableHeaderCell>Materia / Horario</CTableHeaderCell>
-              <CTableHeaderCell>Tipo</CTableHeaderCell>
-              <CTableHeaderCell>Fecha</CTableHeaderCell>
-              <CTableHeaderCell>Nota / Máx</CTableHeaderCell>
-              <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
-            </CTableRow>
-          </CTableHead>
-          <CTableBody>
-            {evaluations.map((ev) => (
-              <CTableRow key={ev.id_evaluation}>
-                <CTableDataCell className="fw-semibold">{ev.student_name}</CTableDataCell>
-                <CTableDataCell>
-                    <div className="fw-bold">{ev.subject_name}</div>
-                    <small className="text-body-secondary">{ev.schedule_info}</small>
-                </CTableDataCell>
-                <CTableDataCell>{ev.evaluation_type === 'summative' ? 'Sumativa' : 'Formativa'}</CTableDataCell>
-                <CTableDataCell className="text-body-secondary">{ev.evaluation_date}</CTableDataCell>
-                <CTableDataCell>
-                    <CBadge color={ev.score >= (ev.max_score/2) ? 'success' : 'danger'}>
-                        {ev.score} / {ev.max_score}
-                    </CBadge>
-                </CTableDataCell>
-                <CTableDataCell className="text-end">
-                    <CButton color="warning" size="sm" variant="ghost" onClick={() => handleEdit(ev)} className="me-2">
-                        <CIcon icon={cilPencil} />
-                    </CButton>
-                    <CButton color="danger" size="sm" variant="ghost" onClick={() => handleDeleteClick(ev.id_evaluation)}>
-                        <CIcon icon={cilTrash} />
-                    </CButton>
-                </CTableDataCell>
-              </CTableRow>
-            ))}
-             {evaluations.length === 0 && <CTableRow><CTableDataCell colSpan="6" className="text-center text-body-secondary py-4">No hay notas registradas.</CTableDataCell></CTableRow>}
-          </CTableBody>
-        </CTable>
+        {/* TARGET TUTORIAL 3: TABLE */}
+        <div className="tour-evaluations-table">
+            <CTable hover responsive align="middle">
+            <CTableHead>
+                <CTableRow>
+                <CTableHeaderCell>Estudiante</CTableHeaderCell>
+                <CTableHeaderCell>Materia / Horario</CTableHeaderCell>
+                <CTableHeaderCell>Tipo</CTableHeaderCell>
+                <CTableHeaderCell>Fecha</CTableHeaderCell>
+                <CTableHeaderCell>Nota / Máx</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
+                </CTableRow>
+            </CTableHead>
+            <CTableBody>
+                {evaluations.map((ev) => (
+                <CTableRow key={ev.id_evaluation}>
+                    <CTableDataCell className="fw-semibold">{ev.student_name}</CTableDataCell>
+                    <CTableDataCell>
+                        <div className="fw-bold">{ev.subject_name}</div>
+                        <small className="text-body-secondary">{ev.schedule_info}</small>
+                    </CTableDataCell>
+                    <CTableDataCell>{ev.evaluation_type === 'summative' ? 'Sumativa' : 'Formativa'}</CTableDataCell>
+                    <CTableDataCell className="text-body-secondary">{ev.evaluation_date}</CTableDataCell>
+                    <CTableDataCell>
+                        <CBadge color={ev.score >= (ev.max_score/2) ? 'success' : 'danger'}>
+                            {ev.score} / {ev.max_score}
+                        </CBadge>
+                    </CTableDataCell>
+                    <CTableDataCell className="text-end">
+                        <CButton color="warning" size="sm" variant="ghost" onClick={() => handleEdit(ev)} className="me-2">
+                            <CIcon icon={cilPencil} />
+                        </CButton>
+                        <CButton color="danger" size="sm" variant="ghost" onClick={() => handleDeleteClick(ev.id_evaluation)}>
+                            <CIcon icon={cilTrash} />
+                        </CButton>
+                    </CTableDataCell>
+                </CTableRow>
+                ))}
+                {evaluations.length === 0 && <CTableRow><CTableDataCell colSpan="6" className="text-center text-body-secondary py-4">No hay notas registradas.</CTableDataCell></CTableRow>}
+            </CTableBody>
+            </CTable>
+        </div>
       </CCardBody>
 
       {/* MODAL PRINCIPAL */}
@@ -322,7 +334,6 @@ const Evaluations = () => {
             {alertBox && <CAlert color="danger">{alertBox}</CAlert>}
             
             <CForm>
-                {/* 1. SELECCIÓN DE SECCIÓN */}
                 <CRow className="mb-3">
                     <CCol md={12}>
                         <CFormSelect 
@@ -342,7 +353,6 @@ const Evaluations = () => {
                 </CRow>
 
                 <CRow className="mb-3">
-                    {/* 2. ESTUDIANTE */}
                     <CCol md={6}>
                         <CFormSelect 
                             label="2. Estudiante" 
@@ -360,7 +370,6 @@ const Evaluations = () => {
                         </CFormSelect>
                     </CCol>
 
-                    {/* 3. HORARIO */}
                     <CCol md={6}>
                         <CFormSelect 
                             label="3. Materia y Horario" 
@@ -389,7 +398,6 @@ const Evaluations = () => {
                             onChange={handleDateChange}
                             invalid={!!errors.evaluation_date}
                         />
-                        {/* MENSAJE DE AYUDA INTELIGENTE */}
                         {requiredDay && !errors.evaluation_date && (
                             <div className="text-info small mt-1">
                                 ℹ️ Esta materia se ve los <strong>{requiredDay}</strong>. Elige una fecha que coincida.

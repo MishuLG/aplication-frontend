@@ -87,8 +87,10 @@ const AppHeader = ({ onLogout }) => {
           {/* Separador Sutil */}
           <div className="vr h-50 mx-1"></div>
 
-          {/* Dropdown de Usuario */}
-          <AppHeaderDropdown onLogout={onLogout} />
+          {/* Dropdown de Usuario con clase para el Tutorial */}
+          <div className="tour-user-dropdown">
+             <AppHeaderDropdown onLogout={onLogout} />
+          </div>
         </CHeaderNav>
       </CContainer>
       

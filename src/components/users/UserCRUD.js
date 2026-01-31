@@ -253,8 +253,8 @@ const Users = () => {
 
   return (
     <div className="container-fluid mt-4">
-        {/* KPI CARDS */}
-        <CRow className="mb-4">
+        {/* KPI CARDS - TARGET TUTORIAL */}
+        <CRow className="mb-4 tour-users-kpi">
             <CCol sm={4}>
                 <CCard className="border-start-4 border-start-primary shadow-sm h-100">
                     <CCardBody className="d-flex justify-content-between align-items-center p-3">
@@ -290,17 +290,19 @@ const Users = () => {
             </CCol>
         </CRow>
 
-        {/* TABLA PRINCIPAL */}
-        <CCard className="shadow-sm border-0">
+        {/* TABLA PRINCIPAL - TARGET TUTORIAL */}
+        <CCard className="shadow-sm border-0 tour-users-table">
             <CCardHeader className="bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
                 <h5 className="mb-0 text-body">Gestión de Usuarios</h5>
-                <CButton color="primary" onClick={() => { handleCloseModal(); setShowModal(true); }} className="d-flex align-items-center">
+                {/* BOTÓN CREAR - TARGET TUTORIAL */}
+                <CButton color="primary" onClick={() => { handleCloseModal(); setShowModal(true); }} className="d-flex align-items-center tour-users-create">
                     <CIcon icon={cilPlus} className="me-2" /> Nuevo Usuario
                 </CButton>
             </CCardHeader>
             <CCardBody>
                 {alertBox && <CAlert color="danger" dismissible onClose={() => setAlertBox(null)}>{alertBox}</CAlert>}
-                <CRow className="mb-4 g-2">
+                {/* BÚSQUEDA - TARGET TUTORIAL */}
+                <CRow className="mb-4 g-2 tour-users-search">
                     <CCol md={4}>
                         <CInputGroup>
                             <CInputGroupText className="bg-body border-end-0 text-medium-emphasis"><CIcon icon={cilSearch} /></CInputGroupText>

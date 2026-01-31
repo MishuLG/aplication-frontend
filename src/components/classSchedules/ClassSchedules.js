@@ -310,14 +310,16 @@ const ClassSchedules = () => {
       {isEditing && <div className="edit-mode-overlay" />} 
 
       <CCol xs={12} className={isEditing ? 'focused-content' : ''}>
-        <CCard className="mb-4 shadow-sm border-0">
+        {/* TARGET TUTORIAL: TABLA DE HORARIOS */}
+        <CCard className="mb-4 shadow-sm border-0 tour-schedules-table">
           <CCardHeader className="py-3 d-flex justify-content-between align-items-center bg-body-tertiary">
             <strong className="fs-5 text-body">Gestión de Horarios</strong>
             
             {selectedSection && schedules.length > 0 && (
                 <div>
                     {!isEditing ? (
-                        <CButton color="info" variant="outline" className="fw-semibold" onClick={() => {setIsEditing(true); setTempSchedule(JSON.parse(JSON.stringify(schedules)));}}>
+                        /* TARGET TUTORIAL: BOTÓN EDITAR */
+                        <CButton color="info" variant="outline" className="fw-semibold tour-schedules-edit" onClick={() => {setIsEditing(true); setTempSchedule(JSON.parse(JSON.stringify(schedules)));}}>
                             <CIcon icon={cilPencil} className="me-2" /> Editar Distribución
                         </CButton>
                     ) : (
@@ -350,25 +352,31 @@ const ClassSchedules = () => {
             <CRow className="mb-4 align-items-end g-3">
               <CCol md={6}>
                 <label className="form-label text-body-secondary">Sección:</label>
-                <CFormSelect 
-                  value={selectedSection} 
-                  onChange={(e) => setSelectedSection(e.target.value)}
-                  disabled={isEditing}
-                  className="bg-body text-body border-secondary-subtle"
-                >
-                  <option value="">-- Seleccionar --</option>
-                  {sections.map(s => (
-                    <option key={s.id_section} value={s.id_section}>
-                      {s.Grade?.name_grade} - "{s.section_identifier}"
-                    </option>
-                  ))}
-                </CFormSelect>
+                {/* TARGET TUTORIAL: BÚSQUEDA */}
+                <div className="tour-schedules-search">
+                    <CFormSelect 
+                    value={selectedSection} 
+                    onChange={(e) => setSelectedSection(e.target.value)}
+                    disabled={isEditing}
+                    className="bg-body text-body border-secondary-subtle"
+                    >
+                    <option value="">-- Seleccionar --</option>
+                    {sections.map(s => (
+                        <option key={s.id_section} value={s.id_section}>
+                        {s.Grade?.name_grade} - "{s.section_identifier}"
+                        </option>
+                    ))}
+                    </CFormSelect>
+                </div>
               </CCol>
               <CCol md={6} className="text-end">
                 {selectedSection && !isEditing && (
-                    <CButton color="primary" onClick={handleGenerate} disabled={loading}>
-                        {loading ? '...' : <><CIcon icon={cilReload} className="me-2"/> Generar Automático</>}
-                    </CButton>
+                    /* TARGET TUTORIAL: GENERAR */
+                    <div className="tour-schedules-create">
+                        <CButton color="primary" onClick={handleGenerate} disabled={loading}>
+                            {loading ? '...' : <><CIcon icon={cilReload} className="me-2"/> Generar Automático</>}
+                        </CButton>
+                    </div>
                 )}
               </CCol>
             </CRow>
@@ -417,31 +425,31 @@ const ClassSchedules = () => {
                                                 >
                                                     {session ? (
                                                         <div 
-                                                            className={`drag-card d-flex flex-column justify-content-between p-2 rounded h-100 text-white bg-${color} shadow-sm ${isEditing ? 'shake-animation' : ''} ${isBeingDragged ? 'is-being-dragged' : ''}`}
-                                                            style={{
-                                                                minHeight: '80px',
-                                                                userSelect: 'none'
-                                                            }}
-                                                            draggable={isEditing}
-                                                            // CORRECCIÓN: Usamos id_class_schedules (plural)
-                                                            onDragStart={(e) => handleDragStart(e, session.id_class_schedules)}
-                                                            onDragEnd={handleDragEnd}
-                                                            title={isEditing ? "Arrastra para mover" : ""}
+                                                                className={`drag-card d-flex flex-column justify-content-between p-2 rounded h-100 text-white bg-${color} shadow-sm ${isEditing ? 'shake-animation' : ''} ${isBeingDragged ? 'is-being-dragged' : ''}`}
+                                                                style={{
+                                                                    minHeight: '80px',
+                                                                    userSelect: 'none'
+                                                                }}
+                                                                draggable={isEditing}
+                                                                // CORRECCIÓN: Usamos id_class_schedules (plural)
+                                                                onDragStart={(e) => handleDragStart(e, session.id_class_schedules)}
+                                                                onDragEnd={handleDragEnd}
+                                                                title={isEditing ? "Arrastra para mover" : ""}
                                                         >
-                                                            <div className="fw-bold" style={{fontSize: '0.85rem', textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>
-                                                                {session.Subject?.name_subject}
-                                                            </div>
-                                                            {!isEditing && (
-                                                                <div className="text-end mt-1">
-                                                                    <CButton size="sm" color="transparent" className="text-white p-0 opacity-75" onClick={() => handleDelete(session.id_class_schedules)}>
-                                                                        <CIcon icon={cilTrash}/>
-                                                                    </CButton>
+                                                                <div className="fw-bold" style={{fontSize: '0.85rem', textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>
+                                                                    {session.Subject?.name_subject}
                                                                 </div>
-                                                            )}
+                                                                {!isEditing && (
+                                                                    <div className="text-end mt-1">
+                                                                        <CButton size="sm" color="transparent" className="text-white p-0 opacity-75" onClick={() => handleDelete(session.id_class_schedules)}>
+                                                                            <CIcon icon={cilTrash}/>
+                                                                        </CButton>
+                                                                    </div>
+                                                                )}
                                                         </div>
                                                     ) : (
                                                         <div className="h-100 d-flex align-items-center justify-content-center text-body-tertiary small">
-                                                            {isEditing && <CIcon icon={cilMove} className="opacity-25"/>}
+                                                                {isEditing && <CIcon icon={cilMove} className="opacity-25"/>}
                                                         </div>
                                                     )}
                                                 </CTableDataCell>
